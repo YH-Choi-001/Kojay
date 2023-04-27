@@ -2,6 +2,7 @@
 #define KOJAY_H
 
 #include <Arduino.h>
+#include <EEPROM.h>
 
 #include "Motor/Motor.h"
 #include "CompoI/CompoI.h"
@@ -26,6 +27,8 @@ class Kojay {
         Cmpas cmpas;
         //
         uint8_t buttons [3];
+        //
+        uint16_t gryscls_thresholds [4][3];
         //
         Kojay ();
         //
@@ -56,6 +59,8 @@ class Kojay {
         void reset_heading ();
         //
         void cal_compass ();
+        //
+        bool read_button (const uint8_t idx);
 };
 
 enum {

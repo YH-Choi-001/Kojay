@@ -49,6 +49,7 @@ void Kojay::begin () {
     for (uint8_t idx = 0; idx < 3; idx++) {
         pinMode(buttons[idx], INPUT_PULLUP);
     }
+    // tobe done: EEPROM retrieve data for compass cal and re-zero and gryscls_thresholds
 }
 
 void Kojay::set_motor (const uint8_t idx, const int16_t spd) {
@@ -82,6 +83,10 @@ int16_t Kojay::get_gryscl (const uint8_t side, const uint8_t idx) {
     return analogRead(gryscls[side][idx]);
 }
 
+bool Kojay::gryscl_touch_white (const uint8_t side, const uint8_t idx) {
+    return get_gryscl(side, idx) > gryscls_thresholds[side][idx];
+}
+
 bool Kojay::side_touch_white (const uint8_t side) {
     bool touch_white = false;
     for (uint8_t i = 0; i < 3; i++) {
@@ -91,6 +96,55 @@ bool Kojay::side_touch_white (const uint8_t side) {
         }
     }
     return touch_white;
+}
+
+void Kojay::cal_gryscl () {
+    // tobe done: cal-gryscl and save to EEPROM
+}
+
+int16_t Kojay::max_ir_val () {
+    const int16_t val0 = eyes[0].get_max_val();
+    const int16_t val1 = eyes[1].get_max_val();
+    if (val0 > val1) {
+        return val0;
+    } else {
+        return val1;
+    }
+}
+
+int8_t Kojay::max_ir_idx () {
+    const int16_t val0 = eyes[0].get_max_val();
+    const int16_t val1 = eyes[1].get_max_val();
+    int8_t idx = 0;
+    if (val0 > val1) {
+        idx = eyes[0].get_max_idx() - 4;
+    } else {
+        idx = eyes[1].get_max_idx() + 2;
+    }
+    if (idx < 0) {
+        idx += 12;
+    }
+    return idx;
+}
+
+int16_t Kojay::get_uts_dist (const uint8_t side) {
+    return uts[side].read_dist_cm();
+}
+
+int16_t Kojay::get_heading () {
+    return cmpas.get_heading();
+}
+
+void Kojay::reset_heading () {
+    cmpas.reset_heading();
+}
+
+void Kojay::cal_compass () {
+    cmpas.compass_cal();
+}
+
+bool Kojay::read_button (const uint8_t idx) {
+    return digitalRead(buttons[idx]);
 }
 
 #endif // #ifndef KOJAY_CPP

@@ -17,19 +17,19 @@ void Uts::begin (const uint8_t init_trig_pin, const uint8_t init_echo_pin) {
 }
 
 
-void yh::rec::Hc_sr04::set_max_waiting_time_in_us (const unsigned long assign_max_waiting_time_in_us) {
+void Uts::set_max_waiting_time_in_us (const unsigned long assign_max_waiting_time_in_us) {
     max_waiting_time_in_us = assign_max_waiting_time_in_us > 23530 ? 23530 : assign_max_waiting_time_in_us; // 23529.41 us for detecting 400 cm obstacle
 }
 
-void yh::rec::Hc_sr04::set_max_range_in_mm (const double max_range_in_mm) {
+void Uts::set_max_range_in_mm (const double max_range_in_mm) {
     max_waiting_time_in_us = (max_range_in_mm > 4000.0 ? 4000.0 : max_range_in_mm) * 5.8823; // it takes 5.8823 us to detect a 1 mm obstable
 }
 
-void yh::rec::Hc_sr04::set_max_range_in_cm (const double max_range_in_cm) {
+void Uts::set_max_range_in_cm (const double max_range_in_cm) {
     max_waiting_time_in_us = (max_range_in_cm > 400.0 ? 400.0 : max_range_in_cm) * 58.823; // it takes 58.823 us to detect a 1 cm obstable
 }
 
-uint16_t yh::rec::Hc_sr04::read_dist_mm () {
+uint16_t Uts::read_dist_mm () {
     digitalWrite(trig_pin, LOW);
     delayMicroseconds(2);
     digitalWrite(trig_pin, HIGH);
@@ -39,7 +39,7 @@ uint16_t yh::rec::Hc_sr04::read_dist_mm () {
     return duration ? duration * 0.17 : 8888;
 }
 
-uint16_t yh::rec::Hc_sr04::read_dist_cm () {
+uint16_t Uts::read_dist_cm () {
     digitalWrite(trig_pin, LOW);
     delayMicroseconds(2);
     digitalWrite(trig_pin, HIGH);
