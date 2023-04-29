@@ -19,7 +19,7 @@ void Motor::begin (const uint8_t init_dir1_pin, const uint8_t init_dir2_pin, con
     pwm_pin = init_pwm_pin;
     reverse_spd = init_reverse_spd;
     pinMode(pwm_pin, OUTPUT);
-    digitalWrite(pwm_pin, LOW);
+    digitalWrite(pwm_pin, HIGH);
     pinMode(dir1_pin, OUTPUT);
     pinMode(dir2_pin, OUTPUT);
     digitalWrite(dir1_pin, LOW);
@@ -27,7 +27,8 @@ void Motor::begin (const uint8_t init_dir1_pin, const uint8_t init_dir2_pin, con
 }
 
 void Motor::stop () {
-    digitalWrite(pwm_pin, LOW);
+    digitalWrite(dir1_pin, HIGH);
+    digitalWrite(dir2_pin, HIGH);
     curr_spd = 0;
 }
 
@@ -42,14 +43,18 @@ int16_t Motor::set_spd (int16_t spd) {
     if (reverse_spd) {
         spd = -spd;
     }
-    if (spd < 0) {
-        digitalWrite(dir1_pin, LOW);
-        digitalWrite(dir2_pin, HIGH);
-        analogWrite(pwm_pin, -spd);
-    } else {
+    if (spd == 0) {
         digitalWrite(dir1_pin, HIGH);
+        digitalWrite(dir2_pin, HIGH);
+        digitalWrite(pwm_pin, HIGH);
+    } else if (spd < 0) {
+        digitalWrite(dir1_pin, LOW);
+        analogWrite(dir2_pin, -spd);
+        digitalWrite(pwm_pin, HIGH);
+    } else {
+        analogWrite(dir1_pin, spd);
         digitalWrite(dir2_pin, LOW);
-        analogWrite(pwm_pin, spd);
+        digitalWrite(pwm_pin, HIGH);
     }
     return curr_spd;
 }

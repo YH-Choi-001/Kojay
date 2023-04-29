@@ -1,0 +1,34 @@
+Kojay				KEYWORD1
+Motor				KEYWORD1
+CompoI				KEYWORD1
+Uts					KEYWORD1
+Cmpas				KEYWORD1
+
+mtrs				KEYWORD2
+gryscls				KEYWORD2
+eyes				KEYWORD2
+uts					KEYWORD2
+cmpas				KEYWORD2
+buttons				KEYWORD2
+gryscls_thresholds		KEYWORD2
+begin				KEYWORD2
+set_motor			KEYWORD2
+polar_ctrl			KEYWORD2
+rect_ctrl			KEYWORD2
+get_gryscl			KEYWORD2
+gryscl_touch_white	KEYWORD2
+side_touch_white	KEYWORD2
+cal_gryscl			KEYWORD2
+max_ir_val			KEYWORD2
+max_ir_idx			KEYWORD2
+get_uts_dist		KEYWORD2
+get_heading			KEYWORD2
+reset_heading		KEYWORD2
+cal_compass			KEYWORD2
+read_button			KEYWORD2
+
+robot				LITERAL1
+front				LITERAL1
+left				LITERAL1
+right				LITERAL1
+back				LITERAL1
