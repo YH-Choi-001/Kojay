@@ -11,13 +11,15 @@ uts					KEYWORD2
 cmpas				KEYWORD2
 buttons				KEYWORD2
 gryscls_thresholds		KEYWORD2
+display				KEYWORD2
+display_debug_info		KEYWORD2
 begin				KEYWORD2
 set_motor			KEYWORD2
 polar_ctrl			KEYWORD2
 rect_ctrl			KEYWORD2
 get_gryscl			KEYWORD2
-gryscl_touch_white	KEYWORD2
-side_touch_white	KEYWORD2
+gryscl_touch_white		KEYWORD2
+side_touch_white		KEYWORD2
 cal_gryscl			KEYWORD2
 max_ir_val			KEYWORD2
 max_ir_idx			KEYWORD2
@@ -25,7 +27,11 @@ get_uts_dist		KEYWORD2
 get_heading			KEYWORD2
 reset_heading		KEYWORD2
 cal_compass			KEYWORD2
-read_button			KEYWORD2
+button_pressed		KEYWORD2
+clear_mon			KEYWORD2
+set_cursor			KEYWORD2
+print				KEYWORD2
+update_all_data		KEYWORD2
 
 robot				LITERAL1
 front				LITERAL1

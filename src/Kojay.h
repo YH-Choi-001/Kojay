@@ -1,6 +1,10 @@
 #ifndef KOJAY_H
 #define KOJAY_H
 
+#ifndef __AVR_ATmega2560__
+#error Arduino Mega not selected
+#endif // #ifndef __AVR_ATmega2560__
+
 #include <Arduino.h>
 #include <EEPROM.h>
 
@@ -9,9 +13,12 @@
 #include "Uts/Uts.h"
 #include "Cmpas/Cmpas.h"
 
-#ifndef __AVR_ATmega2560__
-#error Arduino Mega not selected
-#endif // #ifndef __AVR_ATmega2560__
+#include "Adafruit_SSD1306.h"
+
+#define SCREEN_ADDRESS 0x3C
+
+// #define DISPLAY_DEBUG_INFO 0 // disable oled monitor to display debug info
+#define DISPLAY_DEBUG_INFO 1 // enable oled monitor to display debug info
 
 class Kojay {
     private:
@@ -33,6 +40,10 @@ class Kojay {
         uint8_t buttons [3];
         //
         uint16_t gryscls_thresholds [4][3];
+        //
+        Adafruit_SSD1306 display;
+        //
+        bool display_debug_info;
         //
         Kojay ();
         //
@@ -66,10 +77,28 @@ class Kojay {
         //
         void cal_compass ();
         //
-        bool read_button (const uint8_t idx);
+        bool button_pressed (const uint8_t idx);
+        //
+        void clear_mon ();
+        //
+        void set_cursor (int16_t x, int16_t y);
+        //
+        size_t print(const __FlashStringHelper *);
+        size_t print(const String &);
+        size_t print(const char[]);
+        size_t print(char);
+        size_t print(unsigned char, int = DEC);
+        size_t print(int, int = DEC);
+        size_t print(unsigned int, int = DEC);
+        size_t print(long, int = DEC);
+        size_t print(unsigned long, int = DEC);
+        size_t print(double, int = 2);
+        size_t print(const Printable&);
+        //
+        void update_all_data ();
 };
 
-Kojay robot;
+extern Kojay robot;
 
 enum {
     front = 0,
