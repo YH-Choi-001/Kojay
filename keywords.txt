@@ -32,6 +32,7 @@ clear_mon			KEYWORD2
 set_cursor			KEYWORD2
 print				KEYWORD2
 update_all_data		KEYWORD2
+menu				KEYWORD2
 
 robot				LITERAL1
 front				LITERAL1

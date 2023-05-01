@@ -17,9 +17,9 @@ class Cmpas {
         // stores the heading of the compass
         uint16_t heading;
     public:
-        // minimum strength of magnetic field recorded at this place
-        int16_t min_x, min_y, min_z;
-        // range of strength of magnetic field recorded at this place
+        // hard iron calibration value
+        int16_t base_x, base_y, base_z;
+        // soft iron calibration value
         int16_t range_x, range_y, range_z;
         // the return-to-zero heading
         uint16_t re_zero_heading;

@@ -75,12 +75,12 @@ void Kojay::begin (const uint8_t m1, const uint8_t m2, const uint8_t m3, const u
     // EEPROM[0x05]: re-zero LOW
     // compass cal:
     // minimums:
-    // EEPROM[0x06]: min_x HIGH
-    // EEPROM[0x07]: min_x LOW
-    // EEPROM[0x08]: min_y HIGH
-    // EEPROM[0x09]: min_y LOW
-    // EEPROM[0x0a]: min_z HIGH
-    // EEPROM[0x0b]: min_z LOW
+    // EEPROM[0x06]: base_x HIGH
+    // EEPROM[0x07]: base_x LOW
+    // EEPROM[0x08]: base_y HIGH
+    // EEPROM[0x09]: base_y LOW
+    // EEPROM[0x0a]: base_z HIGH
+    // EEPROM[0x0b]: base_z LOW
     // ranges:
     // EEPROM[0x0c]: range_x HIGH
     // EEPROM[0x0d]: range_x LOW
@@ -115,9 +115,9 @@ void Kojay::begin (const uint8_t m1, const uint8_t m2, const uint8_t m3, const u
     // EEPROM[0x29]: grayscale[3][2] LOW
     uint8_t eeprom_ptr = 0x04;
     cmpas.re_zero_heading = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
-    cmpas.min_x = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
-    cmpas.min_y = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
-    cmpas.min_z = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
+    cmpas.base_x = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
+    cmpas.base_y = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
+    cmpas.base_z = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
     cmpas.range_x = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
     cmpas.range_y = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
     cmpas.range_z = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
@@ -306,7 +306,7 @@ bool Kojay::side_touch_white (const uint8_t side) {
     return touch_white;
 }
 
-void Kojay::cal_gryscl (const uint16_t cal_time_in_millis) {
+void Kojay::cal_gryscl () {
     #if DISPLAY_DEBUG_INFO
     if (display_debug_info) {
     int x_coor[4] = {67, 50, 84, 67};
@@ -334,15 +334,21 @@ void Kojay::cal_gryscl (const uint16_t cal_time_in_millis) {
         }
     }
     unsigned long prev_millis = millis();
-    while ((millis() - prev_millis) < cal_time_in_millis) {
+    while ((millis() - prev_millis) < 5000) {
         for (uint8_t side = 0; side < 4; side++) {
             for (uint8_t idx = 0; idx < 3; idx++) {
+                bool updated = false;
                 const uint16_t curr_val = get_gryscl(side, idx);
                 if (curr_val > maxs[side][idx]) {
                     maxs[side][idx] = curr_val;
+                    updated = true;
                 }
                 if (curr_val < mins[side][idx]) {
                     mins[side][idx] = curr_val;
+                    updated = true;
+                }
+                if (updated) {
+                    prev_millis = millis();
                 }
             }
         }
@@ -488,12 +494,12 @@ void Kojay::cal_compass () {
     cmpas.compass_cal();
 
     uint8_t eeprom_ptr = 0x06;
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.min_x >> 8));
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.min_x & 0xff));
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.min_y >> 8));
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.min_y & 0xff));
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.min_z >> 8));
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.min_z & 0xff));
+    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_x >> 8));
+    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_x & 0xff));
+    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_y >> 8));
+    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_y & 0xff));
+    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_z >> 8));
+    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_z & 0xff));
     EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.range_x >> 8));
     EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.range_x & 0xff));
     EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.range_y >> 8));
@@ -528,7 +534,7 @@ void Kojay::clear_mon () {
 }
 
 void Kojay::set_cursor (int16_t x, int16_t y) {
-    robot.display.setCursor(x, y);
+    robot.display.setCursor(x * 6, y * 9);
 }
 
 
@@ -589,15 +595,563 @@ void Kojay::update_all_data () {
     max_ir_val();
     max_ir_idx();
     get_heading();
-    if (button_pressed(0)) {
-        cal_gryscl(20000);
-        while (button_pressed(0)) {}
-    } else if (button_pressed(1)) {
-        cal_compass();
-        while (button_pressed(1)) {}
-    } else if (button_pressed(2)) {
-        reset_heading();
-        while (button_pressed(2)) {}
+    robot.display.display();
+    // mtrs[m1].begin(4, 8, 12, m1r);  // hardware M1
+    // mtrs[m2].begin(5, 9, 13, m2r);  // hardware M2
+    // mtrs[m3].begin(6, 10, 14, m3r); // hardware M3
+    // mtrs[m4].begin(7, 11, 15, m4r); // hardware M4
+    display_debug_info = old_display_debug_info;
+}
+
+void Kojay::menu () {
+    const bool old_display_debug_info = display_debug_info;
+    display_debug_info = true;
+    static uint8_t mode = 0;
+    // 6, 4 page of raw-motors, 4 page of reassigned-motors, 4 page of gryscl, 1 page of all data, 1 page of cal gryscl, 1 page of cal compass
+    static const uint8_t max_page_of_mode [] = {6, 4, 4, 4, 1, 3, 3};
+    static uint8_t page = 0;
+
+    static Motor raw_mtrs [4];
+    raw_mtrs[0].begin(4, 8, 12, false);  // hardware M1
+    raw_mtrs[1].begin(5, 9, 13, false);  // hardware M2
+    raw_mtrs[2].begin(6, 10, 14, false); // hardware M3
+    raw_mtrs[3].begin(7, 11, 15, false); // hardware M4
+    switch (mode) {
+        case 0:
+            switch (page) {
+                case 0:
+                    display.clearDisplay();
+                    display.setCursor(0, 0);
+                    display.print("1. raw-motors");
+                    display.setCursor(0, 9);
+                    display.print("M1, M2, M3, M4");
+                    display.display();
+                    break;
+                case 1:
+                    display.clearDisplay();
+                    display.setCursor(0, 0);
+                    display.print("2. reasgn-motors");
+                    display.setCursor(0, 9);
+                    display.print("[0], [1], [2], [3]");
+                    display.display();
+                    break;
+                case 2:
+                    display.clearDisplay();
+                    display.setCursor(0, 0);
+                    display.print("3. grayscales");
+                    display.setCursor(0, 9);
+                    display.print("FLRB x [0],[1],[2]");
+                    display.display();
+                    break;
+                case 3:
+                    display.clearDisplay();
+                    display.setCursor(0, 0);
+                    display.print("4. disp all data");
+                    display.setCursor(0, 9);
+                    display.print("IR, UTS, CMPAS");
+                    display.setCursor(0, 18);
+                    display.print("CMPAS");
+                    display.display();
+                    break;
+                case 4:
+                    display.clearDisplay();
+                    display.setCursor(0, 0);
+                    display.print("5. cal gryscl");
+                    display.display();
+                    break;
+                case 5:
+                    display.clearDisplay();
+                    display.setCursor(0, 0);
+                    display.print("6. cal compass");
+                    display.display();
+                    break;
+                default:
+                    page = 0;
+                    break;
+            }
+            {
+                bool both_pressed = false;
+                if (button_pressed(0)) {
+                    while (button_pressed(0)) {
+                        if (button_pressed(1)) {
+                            both_pressed = true;
+                            break;
+                        }
+                    }
+                    if (!both_pressed) {
+                        if (page > 0) {
+                            page--;
+                        } else {
+                            page = max_page_of_mode[mode] - 1;
+                        }
+                    }
+                    display.clearDisplay();
+                }
+                if ((!both_pressed) && button_pressed(1)) {
+                    while (button_pressed(1)) {
+                        if (button_pressed(0)) {
+                            both_pressed = true;
+                            break;
+                        }
+                    }
+                    if (!both_pressed) {
+                        page++;
+                        if (page >= max_page_of_mode[mode]) {
+                            page = 0;
+                        }
+                    }
+                    display.clearDisplay();
+                }
+                if (both_pressed) {
+                    mode = page + 1;
+                    page = 0;
+                    for (uint8_t i = 0; i < 4; i++) {
+                        mtrs[i] = 0;
+                    }
+                }
+            }
+            break;
+        case 1:
+        {
+            static bool inc = true;
+            if (inc) {
+                raw_mtrs[page]++;
+            } else {
+                raw_mtrs[page]--;
+            }
+            if (raw_mtrs[page] == 255) {
+                inc = false;
+            }
+            if (raw_mtrs[page] == -255) {
+                inc = true;
+            }
+            display.clearDisplay();
+            display.setCursor(0, 0);
+            display.print("raw: M");
+            display.print(page+1);
+            display.print(':');
+            if (raw_mtrs[page] > 0) {
+                display.print('+');
+            } else if (raw_mtrs[page] == 0) {
+                display.print(' ');
+            }
+            if (raw_mtrs[page] > -100 && raw_mtrs[page] < 100) {
+                display.print('0');
+            }
+            if (raw_mtrs[page] > -10 && raw_mtrs[page] < 10) {
+                display.print('0');
+            }
+            display.print(raw_mtrs[page]);
+            display.display();
+            {
+                bool both_pressed = false;
+                if (button_pressed(0)) {
+                    raw_mtrs[page] = 0;
+                    while (button_pressed(0)) {
+                        if (button_pressed(1)) {
+                            both_pressed = true;
+                            break;
+                        }
+                    }
+                    if (!both_pressed) {
+                        if (page > 0) {
+                            page--;
+                        } else {
+                            page = max_page_of_mode[mode] - 1;
+                        }
+                    }
+                    display.clearDisplay();
+                }
+                if ((!both_pressed) && button_pressed(1)) {
+                    raw_mtrs[page] = 0;
+                    while (button_pressed(1)) {
+                        if (button_pressed(0)) {
+                            both_pressed = true;
+                            break;
+                        }
+                    }
+                    if (!both_pressed) {
+                        page++;
+                        if (page >= max_page_of_mode[mode]) {
+                            page = 0;
+                        }
+                    }
+                    display.clearDisplay();
+                }
+                if (both_pressed) {
+                    page = mode - 1;
+                    mode = 0;
+                    for (uint8_t i = 0; i < 4; i++) {
+                        mtrs[i] = 0;
+                    }
+                }
+            }
+        }
+            break;
+        case 2:
+        {
+            static bool inc = true;
+            if (inc) {
+                mtrs[page]++;
+            } else {
+                mtrs[page]--;
+            }
+            if (mtrs[page] == 255) {
+                inc = false;
+            }
+            if (mtrs[page] == -255) {
+                inc = true;
+            }
+            display.clearDisplay();
+            display.setCursor(0, 0);
+            display.print("reasgn: M");
+            display.print(page+1);
+            display.print(':');
+            if (mtrs[page] > 0) {
+                display.print('+');
+            } else if (mtrs[page] == 0) {
+                display.print(' ');
+            }
+            if (mtrs[page] > -100 && mtrs[page] < 100) {
+                display.print('0');
+            }
+            if (mtrs[page] > -10 && mtrs[page] < 10) {
+                display.print('0');
+            }
+            display.print(mtrs[page]);
+            display.display();
+            {
+                bool both_pressed = false;
+                if (button_pressed(0)) {
+                    mtrs[page] = 0;
+                    while (button_pressed(0)) {
+                        if (button_pressed(1)) {
+                            both_pressed = true;
+                            break;
+                        }
+                    }
+                    if (!both_pressed) {
+                        if (page > 0) {
+                            page--;
+                        } else {
+                            page = max_page_of_mode[mode] - 1;
+                        }
+                    }
+                    display.clearDisplay();
+                }
+                if ((!both_pressed) && button_pressed(1)) {
+                    mtrs[page] = 0;
+                    while (button_pressed(1)) {
+                        if (button_pressed(0)) {
+                            both_pressed = true;
+                            break;
+                        }
+                    }
+                    if (!both_pressed) {
+                        page++;
+                        if (page >= max_page_of_mode[mode]) {
+                            page = 0;
+                        }
+                    }
+                    display.clearDisplay();
+                }
+                if (both_pressed) {
+                    page = mode - 1;
+                    mode = 0;
+                    for (uint8_t i = 0; i < 4; i++) {
+                        mtrs[i] = 0;
+                    }
+                }
+            }
+        }
+            break;
+        case 3:
+        {
+            display.clearDisplay();
+            display.setCursor(0, 0);
+            display.print("gryscl side ");
+            const char arr [] = {'F', 'L', 'R', 'B'};
+            display.print(arr[page]);
+            display.print(':');
+            display.setCursor(0, 9);
+            display.print("idx   raw  thrs");
+            //             [i]  anlR  thrs
+            uint8_t y_coor = 18;
+            for (uint8_t idx = 0; idx < 3; idx++) {
+                display.setCursor(0, y_coor);
+                display.print('[');
+                display.print(idx);
+                display.print("]  ");
+                const int16_t val = get_gryscl(page, idx);
+                if (val < 1000) {
+                    display.print('0');
+                }
+                if (val < 100) {
+                    display.print('0');
+                }
+                if (val < 10) {
+                    display.print('0');
+                }
+                display.print(val);
+                display.print("  ");
+                const int16_t thrs = gryscls_thresholds[page][idx];
+                if (thrs < 1000) {
+                    display.print('0');
+                }
+                if (thrs < 100) {
+                    display.print('0');
+                }
+                if (thrs < 10) {
+                    display.print('0');
+                }
+                display.print(thrs);
+                if (val > thrs) {
+                    display.fillRect(121, y_coor, 7, 7, SSD1306_WHITE);
+                } else {
+                    display.drawRect(121, y_coor, 7, 7, SSD1306_WHITE);
+                }
+                y_coor += 9;
+            }
+            display.display();
+            {
+                bool both_pressed = false;
+                if (button_pressed(0)) {
+                    while (button_pressed(0)) {
+                        if (button_pressed(1)) {
+                            both_pressed = true;
+                            break;
+                        }
+                    }
+                    if (!both_pressed) {
+                        if (page > 0) {
+                            page--;
+                        } else {
+                            page = max_page_of_mode[mode] - 1;
+                        }
+                    }
+                    display.clearDisplay();
+                }
+                if ((!both_pressed) && button_pressed(1)) {
+                    while (button_pressed(1)) {
+                        if (button_pressed(0)) {
+                            both_pressed = true;
+                            break;
+                        }
+                    }
+                    if (!both_pressed) {
+                        page++;
+                        if (page >= max_page_of_mode[mode]) {
+                            page = 0;
+                        }
+                    }
+                    display.clearDisplay();
+                }
+                if (both_pressed) {
+                    page = mode - 1;
+                    mode = 0;
+                    for (uint8_t i = 0; i < 4; i++) {
+                        mtrs[i] = 0;
+                    }
+                }
+            }
+            break;
+        }
+        case 4:
+            update_all_data();
+            {
+                bool both_pressed = false;
+                if (button_pressed(0)) {
+                    while (button_pressed(0)) {
+                        if (button_pressed(1)) {
+                            both_pressed = true;
+                            break;
+                        }
+                    }
+                    if (!both_pressed) {
+                        if (page > 0) {
+                            page--;
+                        } else {
+                            page = max_page_of_mode[mode] - 1;
+                        }
+                    }
+                    display.clearDisplay();
+                }
+                if ((!both_pressed) && button_pressed(1)) {
+                    while (button_pressed(1)) {
+                        if (button_pressed(0)) {
+                            both_pressed = true;
+                            break;
+                        }
+                    }
+                    if (!both_pressed) {
+                        page++;
+                        if (page >= max_page_of_mode[mode]) {
+                            page = 0;
+                        }
+                    }
+                    display.clearDisplay();
+                }
+                if (both_pressed) {
+                    page = mode - 1;
+                    mode = 0;
+                    for (uint8_t i = 0; i < 4; i++) {
+                        mtrs[i] = 0;
+                    }
+                }
+            }
+            break;
+        case 5:
+            switch (page) {
+                case 0:
+                    display.clearDisplay();
+                    display.setCursor(0, 0);
+                    display.print("gryscl");
+                    display.setCursor(0, 9);
+                    display.print("press button to cal");
+                    break;
+                case 1:
+                    display.clearDisplay();
+                    display.setCursor(0, 0);
+                    display.print("gryscl");
+                    display.setCursor(0, 9);
+                    display.print("caling");
+                    cal_gryscl();
+                    page++;
+                    break;
+                case 2:
+                    display.clearDisplay();
+                    display.setCursor(0, 0);
+                    display.print("gryscl");
+                    display.setCursor(0, 9);
+                    display.print("cal done");
+                    display.setCursor(0, 18);
+                    display.print("press to cal again");
+                    break;
+                default:
+                    page = 0;
+                    break;
+            }
+            {
+                bool both_pressed = false;
+                if (button_pressed(0)) {
+                    while (button_pressed(0)) {
+                        if (button_pressed(1)) {
+                            both_pressed = true;
+                            break;
+                        }
+                    }
+                    if (!both_pressed) {
+                        if (page > 0) {
+                            page--;
+                        } // else {
+                        //     page = max_page_of_mode[mode] - 1;
+                        // }
+                    }
+                    display.clearDisplay();
+                }
+                if ((!both_pressed) && button_pressed(1)) {
+                    while (button_pressed(1)) {
+                        if (button_pressed(0)) {
+                            both_pressed = true;
+                            break;
+                        }
+                    }
+                    if (!both_pressed) {
+                        page++;
+                        if (page >= max_page_of_mode[mode]) {
+                            // page = 0;
+                            page = 1;
+                        }
+                    }
+                    display.clearDisplay();
+                }
+                if (both_pressed) {
+                    page = mode - 1;
+                    mode = 0;
+                    for (uint8_t i = 0; i < 4; i++) {
+                        mtrs[i] = 0;
+                    }
+                }
+            }
+            break;
+        case 6:
+            switch (page) {
+                case 0:
+                    display.clearDisplay();
+                    display.setCursor(0, 0);
+                    display.print("cmpas");
+                    display.setCursor(0, 9);
+                    display.print("press button to cal");
+                    break;
+                case 1:
+                    display.clearDisplay();
+                    display.setCursor(0, 0);
+                    display.print("cmpas");
+                    display.setCursor(0, 9);
+                    display.print("caling");
+                    cal_compass();
+                    page++;
+                    break;
+                case 2:
+                    display.clearDisplay();
+                    display.setCursor(0, 0);
+                    display.print("cmpas");
+                    display.setCursor(0, 9);
+                    display.print("cal done");
+                    display.setCursor(0, 18);
+                    display.print("press to cal again");
+                    break;
+                default:
+                    page = 0;
+                    break;
+            }
+            {
+                bool both_pressed = false;
+                if (button_pressed(0)) {
+                    while (button_pressed(0)) {
+                        if (button_pressed(1)) {
+                            both_pressed = true;
+                            break;
+                        }
+                    }
+                    if (!both_pressed) {
+                        if (page > 0) {
+                            page--;
+                        } // else {
+                        //     page = max_page_of_mode[mode] - 1;
+                        // }
+                    }
+                    display.clearDisplay();
+                }
+                if ((!both_pressed) && button_pressed(1)) {
+                    while (button_pressed(1)) {
+                        if (button_pressed(0)) {
+                            both_pressed = true;
+                            break;
+                        }
+                    }
+                    if (!both_pressed) {
+                        page++;
+                        if (page >= max_page_of_mode[mode]) {
+                            // page = 0;
+                            page = 1;
+                        }
+                    }
+                    display.clearDisplay();
+                }
+                if (both_pressed) {
+                    page = mode - 1;
+                    mode = 0;
+                    for (uint8_t i = 0; i < 4; i++) {
+                        mtrs[i] = 0;
+                    }
+                }
+            }
+            break;
+        default:
+            mode = 0;
+            page = 0;
+            break;
     }
     display_debug_info = old_display_debug_info;
 }

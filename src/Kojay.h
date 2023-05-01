@@ -63,7 +63,7 @@ class Kojay {
         //
         bool side_touch_white (const uint8_t side);
         //
-        void cal_gryscl (const uint16_t cal_time_in_millis);
+        void cal_gryscl ();
         //
         int16_t max_ir_val ();
         //
@@ -96,6 +96,8 @@ class Kojay {
         size_t print(const Printable&);
         //
         void update_all_data ();
+        //
+        void menu ();
 };
 
 extern Kojay robot;

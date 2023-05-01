@@ -105,12 +105,12 @@ bool Cmpas::compass_cal () {
             }
         }
     }
-    min_x = min[0];
-    range_x = max[0] - min_x;
-    min_y = min[1];
-    range_y = max[1] - min_y;
-    min_z = min[2];
-    range_z = max[2] - min_z;
+    base_x = (max[0] + min[0]) / 2;
+    range_x = max[0] - min[0];
+    base_y = (max[1] + min[1]) / 2;
+    range_y = max[1] - min[1];
+    base_z = (max[2] + min[2]) / 2;
+    range_z = max[2] - min[2];
     return true;
 }
 
@@ -124,8 +124,8 @@ bool Cmpas::reset_heading () {
         }
     }
     const double
-        cal_x = static_cast<double>((raw_data.x - min_x) * 2) / range_x - 1,
-        cal_y = static_cast<double>((raw_data.y - min_y) * 2) / range_y - 1;
+        cal_x = static_cast<double>(raw_data.x - base_x) / range_x,
+        cal_y = static_cast<double>(raw_data.y - base_y) / range_y;
     re_zero_heading = atan2(cal_y, cal_x) * RAD_TO_DEG;
     return true;
 }
@@ -133,8 +133,8 @@ bool Cmpas::reset_heading () {
 uint16_t Cmpas::get_heading () {
     if (update()) {
         const double
-            cal_x = static_cast<double>((raw_data.x - min_x) * 2) / range_x - 1,
-            cal_y = static_cast<double>((raw_data.y - min_y) * 2) / range_y - 1;
+            cal_x = static_cast<double>(raw_data.x - base_x) / range_x,
+            cal_y = static_cast<double>(raw_data.y - base_y) / range_y;
         int16_t temp_heading = atan2(cal_y, cal_x) * RAD_TO_DEG - re_zero_heading;
         while (temp_heading < 0) {
             temp_heading += 360;
