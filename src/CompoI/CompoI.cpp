@@ -8,8 +8,7 @@ uint8_t CompoI::command (const uint8_t cmd) {
     Wire.write(cmd);
     Wire.endTransmission();
     Wire.requestFrom(i2c_address, static_cast<uint8_t>(1U));
-    while (!Wire.available()) {}
-    return Wire.read();
+    return Wire.available() ? Wire.read() : 0;
 }
 
 CompoI::CompoI () :

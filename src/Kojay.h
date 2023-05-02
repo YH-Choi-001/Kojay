@@ -13,7 +13,7 @@
 #include "Uts/Uts.h"
 #include "Cmpas/Cmpas.h"
 
-#include "Adafruit_SSD1306.h"
+#include "monitor/Adafruit_SSD1306.h"
 
 #define SCREEN_ADDRESS 0x3C
 
@@ -28,6 +28,8 @@ class Kojay {
     public:
         //
         Motor mtrs [4];
+        //
+        uint8_t mtrs_idxs;
         //
         uint8_t gryscls [4][3];
         //
