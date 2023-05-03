@@ -51,7 +51,7 @@ class Kojay {
         //
         void begin ();
         //
-        void begin (const uint8_t m1, const uint8_t m2, const uint8_t m3, const uint8_t m4, const bool m1r, const bool m2r, const bool m3r, const bool m4r, const uint8_t gs1, const uint8_t gs2, const uint8_t gs3, const uint8_t gs4);
+        void begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1r, const bool m2r, const bool m3r, const bool m4r, const uint8_t gs1, const uint8_t gs2, const uint8_t gs3, const uint8_t gs4);
         //
         void set_motor (const uint8_t idx, const int16_t spd);
         //
@@ -99,7 +99,7 @@ class Kojay {
         //
         void update_all_data ();
         //
-        void menu ();
+        bool menu ();
 };
 
 extern Kojay robot;
