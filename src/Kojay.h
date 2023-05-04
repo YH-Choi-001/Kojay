@@ -79,6 +79,8 @@ class Kojay {
         //
         void cal_compass ();
         //
+        int16_t get_rotation_spd (int target_heading, int tolerance, int quick, int middle, int slow);
+        //
         bool button_pressed (const uint8_t idx);
         //
         void clear_mon ();

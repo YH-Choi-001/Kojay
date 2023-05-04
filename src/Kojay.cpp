@@ -545,62 +545,109 @@ void Kojay::cal_compass () {
     #endif // #if DISPLAY_DEBUG_INFO
 }
 
+int16_t Kojay::get_rotation_spd (int target_heading, int tolerance, int quick, int middle, int slow) {
+    int16_t heading = get_heading() - target_heading;
+    while (heading > 180) {
+        heading -= 360;
+    }
+    while (heading < -180) {
+        heading += 360;
+    }
+    if (heading > tolerance + 50) {
+        return -quick;
+    } else if (heading > tolerance + 20) {
+        return -middle;
+    } else if (heading > tolerance) {
+        return -slow;
+    } else if (heading < -tolerance - 50) {
+        return quick;
+    } else if (heading < -tolerance - 20) {
+        return middle;
+    } else if (heading < -tolerance) {
+        return slow;
+    } else {
+        return 0;
+    }
+}
+
 bool Kojay::button_pressed (const uint8_t idx) {
     return !digitalRead(buttons[idx]);
 }
 
 void Kojay::clear_mon () {
-    robot.display.clearDisplay();
+    display.clearDisplay();
 }
 
 void Kojay::set_cursor (int16_t x, int16_t y) {
-    robot.display.setCursor(x * 6, y * 9);
+    display.setCursor(x * 6, y * 9);
 }
 
 
 
 size_t Kojay::print(const __FlashStringHelper *x) {
-    return robot.display.print(x);
+    const size_t r = display.print(x);
+    display.display();
+    return r;
 }
 
 size_t Kojay::print(const String &x) {
-    return robot.display.print(x);
+    const size_t r = display.print(x);
+    display.display();
+    return r;
 }
 
 size_t Kojay::print(const char x[]) {
-    return robot.display.print(x);
+    const size_t r = display.print(x);
+    display.display();
+    return r;
 }
 
 size_t Kojay::print(char x) {
-    return robot.display.print(x);
+    const size_t r = display.print(x);
+    display.display();
+    return r;
 }
 
 size_t Kojay::print(unsigned char x, int y) {
-    return robot.display.print(x, y);
+    const size_t r = display.print(x, y);
+    display.display();
+    return r;
 }
 
 size_t Kojay::print(int x, int y) {
-    return robot.display.print(x, y);
+    const size_t r = display.print(x, y);
+    display.display();
+    return r;
 }
 
 size_t Kojay::print(unsigned int x, int y) {
-    return robot.display.print(x, y);
+    const size_t r = display.print(x, y);
+    display.display();
+    return r;
 }
 
 size_t Kojay::print(long x, int y) {
-    return robot.display.print(x, y);
+    const size_t r = display.print(x, y);
+    display.display();
+    return r;
 }
 
 size_t Kojay::print(unsigned long x, int y) {
-    return robot.display.print(x, y);
+    const size_t r = display.print(x, y);
+    display.display();
+    return r;
 }
 
 size_t Kojay::print(double x, int y) {
-    return robot.display.print(x, y);
+    const size_t r = display.print(x, y);
+    display.display();
+    return r;
 }
 
 size_t Kojay::print(const Printable& x) {
-    return robot.display.print(x);
+    const size_t r = display.print(x);
+    display.display();
+    return r;
 }
 
 

@@ -27,6 +27,7 @@ get_uts_dist		KEYWORD2
 get_heading			KEYWORD2
 reset_heading		KEYWORD2
 cal_compass			KEYWORD2
+get_rotation_spd	KEYWORD2
 button_pressed		KEYWORD2
 clear_mon			KEYWORD2
 set_cursor			KEYWORD2
