@@ -33,9 +33,15 @@ class Kojay {
         //
         uint8_t gryscls [4][3];
         //
+        uint8_t gryscls_idxs;
+        //
         CompoI eyes [2];
         //
         Uts uts [4];
+        //
+        int16_t uts_dists [4];
+        //
+        unsigned long prev_uts_return_time;
         //
         Cmpas cmpas;
         //
@@ -79,7 +85,7 @@ class Kojay {
         //
         void cal_compass ();
         //
-        int16_t get_rotation_spd (int target_heading, int tolerance, int quick, int middle, int slow);
+        int16_t get_rotation_spd (int16_t target_heading);
         //
         bool button_pressed (const uint8_t idx);
         //

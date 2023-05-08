@@ -126,7 +126,11 @@ bool Cmpas::reset_heading () {
     const double
         cal_x = static_cast<double>(raw_data.x - base_x) / range_x,
         cal_y = static_cast<double>(raw_data.y - base_y) / range_y;
-    re_zero_heading = atan2(cal_y, cal_x) * RAD_TO_DEG;
+    int16_t temp_heading = atan2(cal_y, cal_x) * RAD_TO_DEG;
+    while (temp_heading < 0) {
+        temp_heading += 360;
+    }
+    re_zero_heading = temp_heading;
     return true;
 }
 
@@ -138,6 +142,9 @@ uint16_t Cmpas::get_heading () {
         int16_t temp_heading = atan2(cal_y, cal_x) * RAD_TO_DEG - re_zero_heading;
         while (temp_heading < 0) {
             temp_heading += 360;
+        }
+        while (temp_heading >= 360) {
+            temp_heading -= 360;
         }
         heading = temp_heading;
     }
