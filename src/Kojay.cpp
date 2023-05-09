@@ -25,13 +25,14 @@ Kojay::Kojay () :
     //
 }
 
+uint8_t Kojay::gs_side_to_gs_port (const uint8_t side) {
+    return (gryscls_idxs >> (side * 2)) & 0b11;
+}
+
 void Kojay::begin () {
     const uint8_t eeprom_adr0 = EEPROM.read(0x00);
     mtrs_idxs = EEPROM.read(0x01);
     gryscls_idxs = EEPROM.read(0x02);
-    if (gryscls_idxs == 255) {
-        EEPROM.update(0x02, gryscls_idxs = 0b00011011);
-    }
     begin(
         (mtrs_idxs >> 0) & 0b11, (mtrs_idxs >> 2) & 0b11, (mtrs_idxs >> 4) & 0b11, (mtrs_idxs >> 6) & 0b11,
         (eeprom_adr0 & (1 << 4)) ? true : false, (eeprom_adr0 & (1 << 5)) ? true : false, (eeprom_adr0 & (1 << 6)) ? true : false, (eeprom_adr0 & (1 << 7)) ? true : false,
@@ -40,7 +41,7 @@ void Kojay::begin () {
     // begin(2, 1, 0, 3, false, false, true, true, front, left, right, back); // Chloe settings on 28/04/2023
 }
 
-void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1r, const bool m2r, const bool m3r, const bool m4r, const uint8_t gs1, const uint8_t gs2, const uint8_t gs3, const uint8_t gs4) {
+void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1r, const bool m2r, const bool m3r, const bool m4r, uint8_t g0, uint8_t g1, uint8_t g2, uint8_t g3) {
     m1 &= 0b11;
     m2 &= 0b11;
     m3 &= 0b11;
@@ -52,7 +53,11 @@ void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1
     mtrs[m3].begin(6, 10, 14, m3r); // hardware M3
     mtrs[m4].begin(7, 11, 15, m4r); // hardware M4
     // grayscales
-    gryscls_idxs = gs1 << 0 | gs2 << 2 | gs3 << 4 | gs4 << 6;
+    g0 &= 0b11;
+    g1 &= 0b11;
+    g2 &= 0b11;
+    g3 &= 0b11;
+    gryscls_idxs = (g3 << 6) | (g2 << 4) | (g1 << 2) | (g0 << 0);
     gryscls[0][0] = A0;
     gryscls[0][1] = A1;
     gryscls[0][2] = A2;
@@ -291,11 +296,11 @@ void Kojay::rect_ctrl (int16_t spd_x, int16_t spd_y, int16_t rotation) {
 }
 
 int16_t Kojay::get_gryscl (const uint8_t side, const uint8_t idx) {
-    return analogRead(gryscls[side][idx]);
+    return analogRead(gryscls[gs_side_to_gs_port(side)][idx]);
 }
 
 bool Kojay::gryscl_touch_white (const uint8_t side, const uint8_t idx) {
-    return get_gryscl(side, idx) > gryscls_thresholds[side][idx];
+    return get_gryscl(side, idx) > gryscls_thresholds[gs_side_to_gs_port(side)][idx];
 }
 
 bool Kojay::side_touch_white (const uint8_t side) {
@@ -358,23 +363,23 @@ void Kojay::cal_gryscl () {
     // tobe done: cal-gryscl and save to EEPROM
     uint16_t maxs [4][3];
     uint16_t mins [4][3];
-    for (uint8_t side = 0; side < 4; side++) {
+    for (uint8_t port = 0; port < 4; port++) {
         for (uint8_t idx = 0; idx < 3; idx++) {
-            maxs[side][idx] = mins[side][idx] = get_gryscl(side, idx);
+            maxs[port][idx] = mins[port][idx] = analogRead(gryscls[port][idx]);
         }
     }
     unsigned long prev_millis = millis();
     while ((millis() - prev_millis) < 5000) {
-        for (uint8_t side = 0; side < 4; side++) {
+        for (uint8_t port = 0; port < 4; port++) {
             for (uint8_t idx = 0; idx < 3; idx++) {
                 bool updated = false;
-                const uint16_t curr_val = get_gryscl(side, idx);
-                if (curr_val > maxs[side][idx]) {
-                    maxs[side][idx] = curr_val;
+                const uint16_t curr_val = analogRead(gryscls[port][idx]);
+                if (curr_val > maxs[port][idx]) {
+                    maxs[port][idx] = curr_val;
                     updated = true;
                 }
-                if (curr_val < mins[side][idx]) {
-                    mins[side][idx] = curr_val;
+                if (curr_val < mins[port][idx]) {
+                    mins[port][idx] = curr_val;
                     updated = true;
                 }
                 if (updated) {
@@ -384,11 +389,11 @@ void Kojay::cal_gryscl () {
         }
     }
     uint8_t eeprom_ptr = 0x12;
-    for (uint8_t side = 0; side < 4; side++) {
+    for (uint8_t port = 0; port < 4; port++) {
         for (uint8_t idx = 0; idx < 3; idx++) {
-            const int16_t threshold = (maxs[side][idx] + mins[side][idx]) / 2;
-            gryscls_thresholds[side][idx] = threshold;
-            // gryscls_thresholds[side][idx] = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
+            const int16_t threshold = (maxs[port][idx] + mins[port][idx]) / 2;
+            gryscls_thresholds[port][idx] = threshold;
+            // gryscls_thresholds[port][idx] = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
             EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(threshold >> 8));
             EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(threshold & 0xff));
         }
@@ -1084,35 +1089,67 @@ bool Kojay::menu () {
         {
             // page indicates F, L, R, B
             // gryscl_idx indicates the selected gryscl being [0], [1], [2], [3]
-            static uint8_t gryscl_idx = 0;
             display.clearDisplay();
             switch (page) {
                 case front:
                     center_to_circum(128/2, 64/2, 30, 180, SSD1306_BLACK); // back
-                    center_to_circum(128/2, 64/2, 30, 270, SSD1306_BLACK); // left
+                    // center_to_circum(128/2, 64/2, 30, 270, SSD1306_BLACK); // left
                     center_to_circum(128/2, 64/2, 30, 0, SSD1306_WHITE); // front
                     break;
                 case left:
                     center_to_circum(128/2, 64/2, 30, 0, SSD1306_BLACK); // front
-                    center_to_circum(128/2, 64/2, 30, 90, SSD1306_BLACK); // right
+                    // center_to_circum(128/2, 64/2, 30, 90, SSD1306_BLACK); // right
                     center_to_circum(128/2, 64/2, 30, 270, SSD1306_WHITE); // left
                     break;
                 case right:
                     center_to_circum(128/2, 64/2, 30, 270, SSD1306_BLACK); // left
-                    center_to_circum(128/2, 64/2, 30, 180, SSD1306_BLACK); // back
+                    // center_to_circum(128/2, 64/2, 30, 180, SSD1306_BLACK); // back
                     center_to_circum(128/2, 64/2, 30, 90, SSD1306_WHITE); // right
                     break;
                 case back:
                     center_to_circum(128/2, 64/2, 30, 90, SSD1306_BLACK); // right
-                    center_to_circum(128/2, 64/2, 30, 0, SSD1306_BLACK); // front
+                    // center_to_circum(128/2, 64/2, 30, 0, SSD1306_BLACK); // front
                     center_to_circum(128/2, 64/2, 30, 180, SSD1306_WHITE); // back
                     break;
             }
             const char arr [] = {'F', 'L', 'R', 'B'};
             display.setCursor(0, 0);
-            display.print(STRINGS("gryscl "));
+            display.print(STRINGS("put "));
             display.print(arr[page]);
-            display.print(STRINGS(" is at:"));
+            display.print(STRINGS(" gryscl only"));
+            display.setCursor(0, 9);
+            display.print(STRINGS("on the white line"));
+            display.setCursor(0, 27);
+            display.print(STRINGS("GS1 GS2 GS3 GS4"));
+            bool touch_whites [4] = {false, false, false, false};
+            for (uint8_t port = 0; port < 4; port++) {
+                for (uint8_t idx = 0; idx < 3; idx++) {
+                    if (analogRead(gryscls[port][idx] > gryscls_thresholds[port][idx])) {
+                        touch_whites[port] = true;
+                        break;
+                    }
+                }
+            }
+            if (touch_whites[0]) {
+                display.fillRect(0, 36, 17, 7, SSD1306_WHITE);
+            } else {
+                display.drawRect(0, 36, 17, 7, SSD1306_WHITE);
+            }
+            if (touch_whites[1]) {
+                display.fillRect(24, 36, 17, 7, SSD1306_WHITE);
+            } else {
+                display.drawRect(24, 36, 17, 7, SSD1306_WHITE);
+            }
+            if (touch_whites[2]) {
+                display.fillRect(48, 36, 17, 7, SSD1306_WHITE);
+            } else {
+                display.drawRect(48, 36, 17, 7, SSD1306_WHITE);
+            }
+            if (touch_whites[3]) {
+                display.fillRect(72, 36, 17, 7, SSD1306_WHITE);
+            } else {
+                display.drawRect(72, 36, 17, 7, SSD1306_WHITE);
+            }
             display.display();
             {
                 bool both_pressed = false;
@@ -1124,14 +1161,13 @@ bool Kojay::menu () {
                             break;
                         }
                     }
-                    if (!both_pressed) {
-                        // if (page > 0) {
-                        //     page--;
-                        // } else {
-                        //     page = max_page_of_mode[mode] - 1;
-                        // }
-                        page++;
-                    }
+                    // if (!both_pressed) {
+                    //     if (page > 0) {
+                    //         page--;
+                    //     } else {
+                    //         page = max_page_of_mode[mode] - 1;
+                    //     }
+                    // }
                     display.clearDisplay();
                 }
                 if ((!both_pressed) && button_pressed(1)) {
@@ -1142,22 +1178,55 @@ bool Kojay::menu () {
                             break;
                         }
                     }
-                    if (!both_pressed) {
-                        page++;
-                    }
+                    // if (!both_pressed) {
+                    //     page++;
+                    //     if (page >= max_page_of_mode[mode]) {
+                    //         page = 0;
+                    //     }
+                    // }
                     display.clearDisplay();
                 }
                 if (both_pressed) {
                     if (page < 4) {
-                        // considering which gryscl port (gryscl_idx) carries the gryscl of one specific side (page)
-                        // if page == 1, gryscl_idx == 2, left gryscl is at the gryscl idx2
-                        const uint8_t eeprom_adr2 = 0;
                         // mtrs_idxs &= ~((0b11) << ((page & 0b11) * 2));
                         // mtrs_idxs |= (mtr_idx & 0b11) << ((page & 0b11) * 2);
                         // mtr_idx++;
-                        gryscls_idxs &= ~((0b11) << ((gryscl_idx & 0b11) * 2));
-                        gryscls_idxs |= ((page & 0b11) << ((gryscl_idx & 0b11) * 2));
-                        page++;
+                        uint8_t gryscl_whited_port = 0;
+                        uint8_t gryscl_whited_count = 0;
+                        for (uint8_t i = 0; i < 4; i++) {
+                            if (touch_whites[i]) {
+                                gryscl_whited_port = i;
+                                gryscl_whited_count++;
+                            }
+                        }
+                        if (gryscl_whited_count < 1) {
+                            // no grayscales are detected to be white, scan again for this side
+                            display.clearDisplay();
+                            display.setCursor(0, 0);
+                            display.print(STRINGS("NO gryscls"));
+                            display.setCursor(0, 9);
+                            display.print(STRINGS("are detected white,"));
+                            display.setCursor(0, 18);
+                            display.print(STRINGS("scan again"));
+                            display.display();
+                            delay(2000);
+                        } else if (gryscl_whited_count > 1) {
+                            // more than 1 GS port are detected to be white, scan again for this side
+                            display.clearDisplay();
+                            display.setCursor(0, 0);
+                            display.print(STRINGS("MORE THAN 1 gryscls"));
+                            display.setCursor(0, 9);
+                            display.print(STRINGS("are detected white,"));
+                            display.setCursor(0, 18);
+                            display.print(STRINGS("scan again"));
+                            display.display();
+                            delay(2000);
+                        } else {
+                            // gryscl_whited_count == 1, valid
+                            gryscls_idxs &= ~((0b11) << ((page & 0b11) * 2));
+                            gryscls_idxs |= ((gryscl_whited_port & 0b11) << ((page & 0b11) * 2));
+                            page++;
+                        }
                     }
                     if (page >= 4) {
                         display.clearDisplay();
@@ -1175,7 +1244,7 @@ bool Kojay::menu () {
                         // mtrs[(mtrs_idxs >> 2) & 0b11].begin(5, 9, 13, (eeprom_adr0 & (1 << 5)) ? true : false);  // hardware M2
                         // mtrs[(mtrs_idxs >> 4) & 0b11].begin(6, 10, 14, (eeprom_adr0 & (1 << 6)) ? true : false); // hardware M3
                         // mtrs[(mtrs_idxs >> 6) & 0b11].begin(7, 11, 15, (eeprom_adr0 & (1 << 7)) ? true : false); // hardware M4
-                        EEPROM.update(0x02, 0);
+                        EEPROM.update(0x02, gryscls_idxs);
                         display.setCursor(0, 9);
                         display.print(STRINGS("gryscls config saved"));
                         display.display();
@@ -1483,18 +1552,20 @@ bool Kojay::menu () {
                     display.print(STRINGS("press any button"));
                     display.setCursor(0, 9);
                     display.print(STRINGS("to proceed"));
+                    display.display();
                     break;
                 case 1:
-                    display.setTextSize(7);
-                    display.print(STRINGS("GO!"));
-                    display.setCursor(0, 0);
-                    display.setTextSize(1);
+                    // display.setCursor(0, 0);
+                    // display.setTextSize(7);
+                    // display.print(STRINGS("GO!"));
+                    // display.setCursor(0, 0);
+                    // display.setTextSize(1);
+                    // display.display();
                     break;
                 default:
                     page = 0;
                     break;
             }
-            display.display();
             {
                 bool both_pressed = false;
                 if (button_pressed(0)) {
@@ -1506,11 +1577,6 @@ bool Kojay::menu () {
                         }
                     }
                     if (!both_pressed) {
-                        display.setTextSize(7);
-                        display.print(STRINGS("GO!"));
-                        display.setCursor(0, 0);
-                        display.setTextSize(1);
-                        display.display();
                         if (page > 0) {
                             page--;
                         } else {
@@ -1528,11 +1594,6 @@ bool Kojay::menu () {
                         }
                     }
                     if (!both_pressed) {
-                        display.setTextSize(7);
-                        display.print(STRINGS("GO!"));
-                        display.setCursor(0, 0);
-                        display.setTextSize(1);
-                        display.display();
                         page++;
                         if (page >= max_page_of_mode[mode]) {
                             page = 0;
@@ -1546,6 +1607,13 @@ bool Kojay::menu () {
                     for (uint8_t i = 0; i < 4; i++) {
                         mtrs[i] = 0;
                     }
+                } else if (page == 1) {
+                    display.setCursor(0, 0);
+                    display.setTextSize(7);
+                    display.print(STRINGS("GO!"));
+                    display.setCursor(0, 0);
+                    display.setTextSize(1);
+                    display.display();
                 }
             }
             break;
