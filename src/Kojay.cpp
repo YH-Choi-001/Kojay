@@ -437,8 +437,12 @@ int8_t Kojay::max_ir_idx () {
     } else {
         idx = eyes[1].get_max_idx() + 2;
     }
-    if (idx < 0) {
+    // if (front back reversed) idx += 6;
+    while (idx < 0) {
         idx += 12;
+    }
+    while (idx >= 12) {
+        idx -= 12;
     }
     #if DISPLAY_DEBUG_INFO
     if (display_debug_info) {
@@ -711,8 +715,8 @@ bool Kojay::menu () {
     const bool old_display_debug_info = display_debug_info;
     display_debug_info = true;
     static uint8_t mode = 0;
-    // 9, 4 page of raw-motors, 4 page of realloc-motors, 4 page of relocated-motors, 4 page of realloc-gryscls, 4 page of gryscls, 1 page of all data, 1 page of cal gryscls, 1 page of cal compass
-    static const uint8_t max_page_of_mode [] = {9, 4, 4, 4, 4, 1, 3, 3, 2};
+    // 9, 4 page of raw-motors, 4 page of realloc-motors, 4 page of relocated-motors, 4 page of realloc-gryscls, 4 page of gryscls, 1 page of all data, 3 page of cal gryscls, 3 page of cal compass, 2 page of start program
+    static const uint8_t max_page_of_mode [] = {9, 4, 4, 4, 4, 4, 1, 3, 3, 2};
     static uint8_t page = 0;
 
     static Motor raw_mtrs [4];
@@ -1231,7 +1235,7 @@ bool Kojay::menu () {
                     if (page >= 4) {
                         display.clearDisplay();
                         display.setCursor(0, 0);
-                        display.print(STRINGS("all gryscls reasgned"));
+                        display.print(STRINGS("all gryscls reasgned"));4
                         display.display();
                         // EEPROM operations
                         // uint8_t eeprom_adr0 = EEPROM.read(0x00);
