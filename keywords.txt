@@ -23,6 +23,8 @@ side_touch_white		KEYWORD2
 cal_gryscl			KEYWORD2
 max_ir_val			KEYWORD2
 max_ir_idx			KEYWORD2
+set_ir_addr_0x01		KEYWORD2
+set_ir_addr_0x02		KEYWORD2
 get_uts_dist		KEYWORD2
 get_heading			KEYWORD2
 reset_heading		KEYWORD2

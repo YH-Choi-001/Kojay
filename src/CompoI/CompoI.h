@@ -38,6 +38,10 @@ class CompoI {
         // initializes the hardware
         // completed by factory, no need for user to call this method
         uint8_t calibrate ();
+        // sets the address of the compound eye as 0x01
+        uint8_t set_addr_0x01 ();
+        // sets the address of the compound eye as 0x02
+        uint8_t set_addr_0x02 ();
 };
 
 #endif // #ifndef COMPOI_H

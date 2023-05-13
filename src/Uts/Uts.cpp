@@ -4,7 +4,7 @@
 #include "Uts.h"
 
 Uts::Uts () :
-    trig_pin(0), echo_pin(0), max_waiting_time_in_us(15000)
+    trig_pin(0), echo_pin(0), max_waiting_time_in_us(15000), prev_echo_time(0), reading_mm(888)
 {
     //
 }
@@ -30,23 +30,21 @@ void Uts::set_max_range_in_cm (const double max_range_in_cm) {
 }
 
 uint16_t Uts::read_dist_mm () {
+    if (micros() - prev_echo_time < 33333) {
+        return reading_mm;
+    }
     digitalWrite(trig_pin, LOW);
     delayMicroseconds(2);
     digitalWrite(trig_pin, HIGH);
     delayMicroseconds(10);
     digitalWrite(trig_pin, LOW);
     const unsigned long duration = pulseIn(echo_pin, HIGH, max_waiting_time_in_us);
-    return duration ? duration * 0.17 : 8888;
+    prev_echo_time = micros();
+    return reading_mm = (duration ? duration * 0.17 : 8888);
 }
 
 uint16_t Uts::read_dist_cm () {
-    digitalWrite(trig_pin, LOW);
-    delayMicroseconds(2);
-    digitalWrite(trig_pin, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trig_pin, LOW);
-    const unsigned long duration = pulseIn(echo_pin, HIGH, max_waiting_time_in_us);
-    return duration ? duration * 0.017 : 888;
+    return read_dist_mm() / 10;
 }
 
 #endif // #ifndef UTS_CPP

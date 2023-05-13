@@ -14,6 +14,10 @@ class Uts {
         uint8_t echo_pin;
         // the max waiting time for the sound pulse to return (unit is microseconds)
         unsigned long max_waiting_time_in_us;
+        // the previous time the echo pulse is received
+        unsigned long prev_echo_time;
+        // the previous reading (unit is mm)
+        uint16_t reading_mm;
     public:
         // constructor
         Uts ();

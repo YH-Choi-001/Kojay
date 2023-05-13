@@ -25,24 +25,21 @@ class Kojay {
         //
     protected:
         //
-        uint8_t gs_side_to_gs_port (const uint8_t side);
     public:
+        //
+        unsigned long prev_uts_time;
+        //
+        int16_t uts_dists [4];
         //
         Motor mtrs [4];
         //
         uint8_t mtrs_idxs;
         //
         uint8_t gryscls [4][3];
-        // stores the data to convert side to port
-        uint8_t gryscls_idxs;
         //
         CompoI eyes [2];
         //
         Uts uts [4];
-        //
-        int16_t uts_dists [4];
-        //
-        unsigned long prev_uts_return_time;
         //
         Cmpas cmpas;
         //
@@ -58,7 +55,7 @@ class Kojay {
         //
         void begin ();
         //
-        void begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1r, const bool m2r, const bool m3r, const bool m4r, uint8_t g0, uint8_t g1, uint8_t g2, uint8_t g3);
+        void begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1r, const bool m2r, const bool m3r, const bool m4r, const uint8_t gs1, const uint8_t gs2, const uint8_t gs3, const uint8_t gs4);
         //
         void set_motor (const uint8_t idx, const int16_t spd);
         //
@@ -77,6 +74,10 @@ class Kojay {
         int16_t max_ir_val ();
         //
         int8_t max_ir_idx ();
+        //
+        void set_ir_addr_0x01 ();
+        //
+        void set_ir_addr_0x02 ();
         //
         int16_t get_uts_dist (const uint8_t side);
         //

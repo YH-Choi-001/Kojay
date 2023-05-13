@@ -60,4 +60,12 @@ uint8_t CompoI::calibrate () {
     return command(15);
 }
 
+uint8_t CompoI::set_addr_0x01 () {
+    return command(16);
+}
+
+uint8_t CompoI::set_addr_0x02 () {
+    return command(17);
+}
+
 #endif // #ifndef COMPOI_CPP
