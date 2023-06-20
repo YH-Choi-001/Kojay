@@ -12,6 +12,7 @@
 #include "CompoI/CompoI.h"
 #include "Uts/Uts.h"
 #include "Cmpas/Cmpas.h"
+#include "Gyro/Gyro.h"
 
 #include "monitor/Adafruit_SSD1306.h"
 
@@ -43,9 +44,13 @@ class Kojay {
         //
         Cmpas cmpas;
         //
+        Gyro gyro;
+        //
         uint8_t buttons [3];
         //
         uint16_t gryscls_thresholds [4][3];
+        //
+        bool use_gyro_instead_cmpas;
         //
         Adafruit_SSD1306 display;
         //
@@ -62,6 +67,8 @@ class Kojay {
         void polar_ctrl (int16_t angle, int16_t spd, int16_t rotation);
         //
         void rect_ctrl (int16_t spd_x, int16_t spd_y, int16_t rotation);
+        //
+        bool move_to (const uint8_t side1, const int16_t dist1, const uint8_t side2, const int16_t dist2, const int16_t threshold = 1, const int16_t spd = 80, const double rotation_kp = 0.98, const int16_t target_heading = 0);
         //
         int16_t get_gryscl (const uint8_t side, const uint8_t idx);
         //
@@ -81,7 +88,7 @@ class Kojay {
         //
         int16_t get_uts_dist (const uint8_t side);
         //
-        int16_t get_heading ();
+        double get_heading ();
         //
         void reset_heading ();
         //

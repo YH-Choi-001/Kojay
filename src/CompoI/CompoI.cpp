@@ -68,4 +68,22 @@ uint8_t CompoI::set_addr_0x02 () {
     return command(17);
 }
 
+uint8_t CompoI::disable_vectors () {
+    return command(18);
+}
+
+uint8_t CompoI::enable_vectors () {
+    return command(19);
+}
+
+uint8_t CompoI::get_vector_dir () {
+    Wire.beginTransmission(i2c_address);
+    Wire.write(8);
+    Wire.endTransmission();
+    Wire.requestFrom(i2c_address, static_cast<uint8_t>(2U));
+    if (Wire.available())
+        Wire.read();
+    return Wire.available() ? Wire.read() : 0;
+}
+
 #endif // #ifndef COMPOI_CPP

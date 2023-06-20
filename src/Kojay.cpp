@@ -34,12 +34,78 @@ void Kojay::begin () {
 }
 
 void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1r, const bool m2r, const bool m3r, const bool m4r, const uint8_t gs1, const uint8_t gs2, const uint8_t gs3, const uint8_t gs4) {
+    // Serial monitor debug
+    Serial.begin(9600);
+    // I2C bus
+    Wire.begin();
+    Wire.setClock(400000);
+    // I2C oled monitor
+    Wire.beginTransmission(SCREEN_ADDRESS);
+    if (!Wire.endTransmission()) {
+        display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
+        display.display();
+        display.setTextSize(1);      // Normal 1:1 pixel scale
+        display.setTextColor(SSD1306_WHITE); // Draw white text
+        display.setCursor(0, 0);     // Start at top-left corner
+        display.cp437(true);         // Use full 256 char 'Code Page 437' font
+    }
+    {
+        uint8_t slaves_found = 0x00;
+        for (uint8_t i = 1; i <= 127; i++) {
+            Wire.beginTransmission(i);
+            if (!Wire.endTransmission()) {
+                Serial.print(STRINGS("I2C slave found at 0x"));
+                Serial.print(i, HEX);
+                switch (i) {
+                    case 0x01:
+                        Serial.print(STRINGS(",\twhich is IR-ring 1"));
+                        slaves_found |= (1 << 0);
+                        break;
+                    case 0x02:
+                        Serial.print(STRINGS(",\twhich is IR-ring 2"));
+                        slaves_found |= (1 << 1);
+                        break;
+                    case 0x0D:
+                        Serial.print(STRINGS(",\twhich is QMC5883L"));
+                        slaves_found |= (1 << 2);
+                        break;
+                    case 0x3C:
+                        Serial.print(STRINGS(",\twhich is OLED monitor"));
+                        slaves_found |= (1 << 3);
+                        break;
+                    case 0x68:
+                        Serial.print(STRINGS(",\twhich is MPU6050"));
+                        slaves_found |= (1 << 4);
+                        break;
+                    default:
+                        Serial.print(STRINGS(",\twhich is unidentified"));
+                        break;
+                }
+                Serial.print('\n');
+            }
+        }
+        {
+            int y = 0;
+            if (!(slaves_found & (1 << 0))) {
+                set_cursor(0, y++);
+                print("IR-ring 1 not found");
+            }
+            if (!(slaves_found & (1 << 1))) {
+                set_cursor(0, y++);
+                print("IR-ring 2 not found");
+            }
+            if (!(slaves_found & (1 << 2)) && !(slaves_found & (1 << 4))) {
+                set_cursor(0, y++);
+                print("no headings found");
+            }
+        }
+    }
+    // motors
     m1 &= 0b11;
     m2 &= 0b11;
     m3 &= 0b11;
     m4 &= 0b11;
     mtrs_idxs = (m4 << 6) | (m3 << 4) | (m2 << 2) | (m1 << 0);
-    // motors
     mtrs[m1].begin(4, 8, 12, m1r);  // hardware M1
     mtrs[m2].begin(5, 9, 13, m2r);  // hardware M2
     mtrs[m3].begin(6, 10, 14, m3r); // hardware M3
@@ -71,7 +137,13 @@ void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1
     uts[2].begin(33, 29);
     uts[3].begin(34, 30);
     // compass
-    cmpas.begin();
+    use_gyro_instead_cmpas = false;
+    if (cmpas.is_cmpas_present()) {
+        cmpas.begin();
+    } else if (gyro.is_gyro_present()) {
+        use_gyro_instead_cmpas = true;
+        gyro.begin();
+    }
     // buttons
     buttons[0] = 38;
     buttons[1] = 39;
@@ -83,6 +155,7 @@ void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1
     // EEPROM[0x00]: [7 : 4   motors reversed direction] [3 : 0   robot no.]
     // EEPROM[0x01]: [7 : 6 M4_idx] [5 : 4 M3_idx] [3 : 2 M2_idx] [1 : 0 M1_idx]
     // EEPROM[0x02 - 0x03]: reserved
+    // compass:
     // re-zero:
     // EEPROM[0x04]: re-zero HIGH
     // EEPROM[0x05]: re-zero LOW
@@ -126,6 +199,14 @@ void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1
     // EEPROM[0x27]: grayscale[3][1] LOW
     // EEPROM[0x28]: grayscale[3][2] HIGH
     // EEPROM[0x29]: grayscale[3][2] LOW
+    // EEPROM[0x2a - 0x2f]: reserved
+    // gyro:
+    // EEPROM[0x30]: gyro cal_x HIGH
+    // EEPROM[0x31]: gyro cal_x LOW
+    // EEPROM[0x32]: gyro cal_y HIGH
+    // EEPROM[0x33]: gyro cal_y LOW
+    // EEPROM[0x34]: gyro cal_z HIGH
+    // EEPROM[0x35]: gyro cal_z LOW
     uint8_t eeprom_ptr = 0x04;
     cmpas.re_zero_heading = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
     cmpas.base_x = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
@@ -138,16 +219,6 @@ void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1
         for (uint8_t idx = 0; idx < 3; idx++) {
             gryscls_thresholds[side][idx] = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
         }
-    }
-    Serial.begin(9600);
-    Wire.beginTransmission(SCREEN_ADDRESS);
-    if (!Wire.endTransmission()) {
-        display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
-        display.display();
-        display.setTextSize(1);      // Normal 1:1 pixel scale
-        display.setTextColor(SSD1306_WHITE); // Draw white text
-        display.setCursor(0, 0);     // Start at top-left corner
-        display.cp437(true);         // Use full 256 char 'Code Page 437' font
     }
 
     #if DISPLAY_DEBUG_INFO
@@ -280,6 +351,55 @@ void Kojay::rect_ctrl (int16_t spd_x, int16_t spd_y, int16_t rotation) {
     mtrs[1].set_spd(mtr1_spd + rotation);
     mtrs[2].set_spd(-mtr0_spd + rotation);
     mtrs[3].set_spd(-mtr1_spd + rotation);
+}
+
+bool Kojay::move_to (const uint8_t side1, const int16_t dist1, const uint8_t side2, const int16_t dist2, const int16_t threshold, const int16_t spd, const double rotation_kp, const int16_t target_heading) {
+    if ((side1 == side2) || (side1 == front && side2 == back) || (side1 == back && side2 == front) || (side1 == left && side2 == right) || (side1 == right && side2 == left)) {
+        robot.polar_ctrl(0, 0, 0);
+        return false;
+    }
+    int dist_to_x, dist_to_y;
+    switch (side1) {
+        case front:
+            dist_to_y = robot.get_uts_dist(front) - dist1;
+            break;
+        case left:
+            dist_to_x = dist1 - robot.get_uts_dist(left);
+            break;
+        case right:
+            dist_to_x = robot.get_uts_dist(right) - dist1;
+            break;
+        case back:
+            dist_to_y = dist1 - robot.get_uts_dist(back);
+            break;
+    }
+    switch (side2) {
+        case front:
+            dist_to_y = robot.get_uts_dist(front) - dist2;
+            break;
+        case left:
+            dist_to_x = dist2 - robot.get_uts_dist(left);
+            break;
+        case right:
+            dist_to_x = robot.get_uts_dist(right) - dist2;
+            break;
+        case back:
+            dist_to_y = dist2 - robot.get_uts_dist(back);
+            break;
+    }
+    int relative_heading = robot.get_heading() - target_heading;
+    while (relative_heading < -180) {
+        relative_heading += 360;
+    }
+    while (relative_heading > 180) {
+        relative_heading -= 360;
+    }
+    if ((dist_to_x <= threshold) && (dist_to_y <= threshold) && (relative_heading > -7) && (relative_heading < 7)) {
+        robot.polar_ctrl(0, 0, 0);
+        return true;
+    }
+    robot.polar_ctrl(atan2(dist_to_x, dist_to_y) * RAD_TO_DEG, spd, -relative_heading * rotation_kp);
+    return false;
 }
 
 int16_t Kojay::get_gryscl (const uint8_t side, const uint8_t idx) {
@@ -494,8 +614,13 @@ int16_t Kojay::get_uts_dist (const uint8_t side) {
     return dist;
 }
 
-int16_t Kojay::get_heading () {
-    int16_t heading = cmpas.get_heading();
+double Kojay::get_heading () {
+    int16_t heading = 0;
+    if (use_gyro_instead_cmpas) {
+        heading = gyro.get_yaw();
+    } else {
+        heading = cmpas.get_heading();
+    }
     #if DISPLAY_DEBUG_INFO
     if (display_debug_info) {
     display.fillCircle(112,15,15, SSD1306_BLACK);
@@ -513,9 +638,13 @@ int16_t Kojay::get_heading () {
 }
 
 void Kojay::reset_heading () {
-    cmpas.reset_heading();
-    EEPROM.update(0x04, static_cast<uint8_t>(cmpas.re_zero_heading >> 8));
-    EEPROM.update(0x05, static_cast<uint8_t>(cmpas.re_zero_heading & 0xff));
+    if (use_gyro_instead_cmpas) {
+        gyro.reset_yaw();
+    } else {
+        cmpas.reset_heading();
+        EEPROM.update(0x04, static_cast<uint8_t>(cmpas.re_zero_heading >> 8));
+        EEPROM.update(0x05, static_cast<uint8_t>(cmpas.re_zero_heading & 0xff));
+    }
 }
 
 void Kojay::cal_compass () {
@@ -525,32 +654,52 @@ void Kojay::cal_compass () {
     display.fillRect(101, 43, 23, 7, SSD1306_BLACK);
     display.setCursor(101, 43);
     display.print(STRINGS("cali"));
-    display.display();
     }
     #endif // #if DISPLAY_DEBUG_INFO
 
-    for (uint8_t idx = 0; idx < 4; idx++) {
-        set_motor(idx, 50);
-    }
+    if (use_gyro_instead_cmpas) {
+        #if DISPLAY_DEBUG_INFO
+        if (display_debug_info) {
+        display.setCursor(101, 52);
+        display.print(STRINGS("gyro"));
+        display.display();
+        }
+        #endif // #if DISPLAY_DEBUG_INFO
+        for (uint8_t idx = 0; idx < 4; idx++) {
+            set_motor(idx, 0);
+        }
+        gyro.cal();
+    } else {
+        #if DISPLAY_DEBUG_INFO
+        if (display_debug_info) {
+        display.setCursor(98, 52);
+        display.print(STRINGS("magnt"));
+        display.display();
+        }
+        #endif // #if DISPLAY_DEBUG_INFO
+        for (uint8_t idx = 0; idx < 4; idx++) {
+            set_motor(idx, 70);
+        }
 
-    cmpas.compass_cal();
+        cmpas.compass_cal();
 
-    uint8_t eeprom_ptr = 0x06;
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_x >> 8));
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_x & 0xff));
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_y >> 8));
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_y & 0xff));
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_z >> 8));
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_z & 0xff));
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.range_x >> 8));
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.range_x & 0xff));
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.range_y >> 8));
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.range_y & 0xff));
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.range_z >> 8));
-    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.range_z & 0xff));
+        uint8_t eeprom_ptr = 0x06;
+        EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_x >> 8));
+        EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_x & 0xff));
+        EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_y >> 8));
+        EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_y & 0xff));
+        EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_z >> 8));
+        EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.base_z & 0xff));
+        EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.range_x >> 8));
+        EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.range_x & 0xff));
+        EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.range_y >> 8));
+        EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.range_y & 0xff));
+        EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.range_z >> 8));
+        EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(cmpas.range_z & 0xff));
 
-    for (uint8_t idx = 0; idx < 4; idx++) {
-        set_motor(idx, 0);
+        for (uint8_t idx = 0; idx < 4; idx++) {
+            set_motor(idx, 0);
+        }
     }
 
     #if DISPLAY_DEBUG_INFO
@@ -559,6 +708,7 @@ void Kojay::cal_compass () {
     display.drawCircle(112,15,15, SSD1306_WHITE);
     center_to_circum(112,15,15,0,SSD1306_WHITE);
     display.fillRect(101, 43, 23, 7, SSD1306_BLACK);
+    display.fillRect(98, 52, 29, 7, SSD1306_BLACK);
     display.setCursor(101, 43);
     display.print(STRINGS("000"));
     print_degree(119, 43);

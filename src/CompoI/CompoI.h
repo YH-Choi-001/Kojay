@@ -42,6 +42,12 @@ class CompoI {
         uint8_t set_addr_0x01 ();
         // sets the address of the compound eye as 0x02
         uint8_t set_addr_0x02 ();
+        // disables vector algorithm
+        uint8_t disable_vectors ();
+        // enables vector algorithm
+        uint8_t enable_vectors ();
+        // @return gets the vector direction to the ball
+        uint8_t get_vector_dir ();
 };
 
 #endif // #ifndef COMPOI_H

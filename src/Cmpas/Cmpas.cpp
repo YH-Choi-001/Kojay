@@ -161,4 +161,18 @@ int16_t Cmpas::get_raw_temp () {
     return (high << 8) | low;
 }
 
+uint8_t Cmpas::id () {
+    Wire.beginTransmission(i2c_address); // address QMC5883L compass
+    Wire.write(0x0D); // select register 0x0D - Chip ID
+    if (Wire.endTransmission()) {
+        return 0;
+    }
+    Wire.requestFrom(i2c_address, static_cast<uint8_t>(1U)); // request 1 byte from compass
+    return Wire.available() ? Wire.read() : 0;
+}
+
+bool Cmpas::is_cmpas_present () {
+    return (id() == 0xff);
+}
+
 #endif // #ifndef CMPAS_CPP

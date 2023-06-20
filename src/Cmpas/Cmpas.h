@@ -47,6 +47,10 @@ class Cmpas {
         // so only the relative temperature is accurate.
         // @return The raw value of temperature sensor recorded by the chip in 2's complement (100 LSB / degree Celsius).
         int16_t get_raw_temp ();
+        // reads the identification register
+        uint8_t id ();
+        // check for presence of the chip on the I2C bus
+        bool is_cmpas_present ();
 };
 
 #endif // #ifndef CMPAS_H
