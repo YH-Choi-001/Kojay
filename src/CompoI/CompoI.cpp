@@ -78,6 +78,14 @@ uint8_t CompoI::enable_vectors () {
     return command(19);
 }
 
+uint8_t CompoI::turn_off_leds () {
+    return command(20);
+}
+
+uint8_t CompoI::turn_on_leds () {
+    return command(21);
+}
+
 uint8_t CompoI::get_vector_dir () {
     Wire.beginTransmission(i2c_address);
     Wire.write(8);
