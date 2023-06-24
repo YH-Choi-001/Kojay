@@ -4,10 +4,12 @@
 #include "CompoI.h"
 
 uint8_t CompoI::command (const uint8_t cmd) {
+    Wire.setClock(100000);
     Wire.beginTransmission(i2c_address);
     Wire.write(cmd);
-    Wire.endTransmission();
+    Wire.endTransmission(false);
     Wire.requestFrom(i2c_address, static_cast<uint8_t>(1U));
+    Wire.setClock(400000);
     return Wire.available() ? Wire.read() : 0;
 }
 

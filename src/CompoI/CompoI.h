@@ -46,6 +46,10 @@ class CompoI {
         uint8_t disable_vectors ();
         // enables vector algorithm
         uint8_t enable_vectors ();
+        // turn off leds
+        uint8_t turn_off_leds ();
+        // turn on leds
+        uint8_t turn_on_leds ();
         // @return gets the vector direction to the ball
         uint8_t get_vector_dir ();
 };
