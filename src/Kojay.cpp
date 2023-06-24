@@ -89,15 +89,19 @@ void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1
             if (!(slaves_found & (1 << 0))) {
                 set_cursor(0, y++);
                 print("IR-ring 1 not found");
+                delay(2000);
             }
             if (!(slaves_found & (1 << 1))) {
                 set_cursor(0, y++);
                 print("IR-ring 2 not found");
+                delay(2000);
             }
             if (!(slaves_found & (1 << 2)) && !(slaves_found & (1 << 4))) {
                 set_cursor(0, y++);
                 print("no headings found");
+                delay(2000);
             }
+            clear_mon();
         }
     }
     // motors
