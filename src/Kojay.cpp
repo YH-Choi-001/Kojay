@@ -29,11 +29,11 @@ Kojay::Kojay () :
 void Kojay::begin () {
     const uint8_t eeprom_adr0 = EEPROM.read(0x00);
     mtrs_idxs = EEPROM.read(0x01);
-    begin((mtrs_idxs >> 0) & 0b11, (mtrs_idxs >> 2) & 0b11, (mtrs_idxs >> 4) & 0b11, (mtrs_idxs >> 6) & 0b11, (eeprom_adr0 & (1 << 4)) ? true : false, (eeprom_adr0 & (1 << 5)) ? true : false, (eeprom_adr0 & (1 << 6)) ? true : false, (eeprom_adr0 & (1 << 7)) ? true : false, front, left, right, back);
+    begin((mtrs_idxs >> 0) & 0b11, (mtrs_idxs >> 2) & 0b11, (mtrs_idxs >> 4) & 0b11, (mtrs_idxs >> 6) & 0b11, (eeprom_adr0 & (1 << 4)) ? true : false, (eeprom_adr0 & (1 << 5)) ? true : false, (eeprom_adr0 & (1 << 6)) ? true : false, (eeprom_adr0 & (1 << 7)) ? true : false);
     // begin(2, 1, 0, 3, false, false, true, true, front, left, right, back); // Chloe settings on 28/04/2023
 }
 
-void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1r, const bool m2r, const bool m3r, const bool m4r, const uint8_t gs1, const uint8_t gs2, const uint8_t gs3, const uint8_t gs4) {
+void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1r, const bool m2r, const bool m3r, const bool m4r) {
     // Serial monitor debug
     Serial.begin(9600);
     // I2C bus
@@ -43,7 +43,7 @@ void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1
     Wire.beginTransmission(SCREEN_ADDRESS);
     if (!Wire.endTransmission()) {
         display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
-        display.display();
+        clear_mon();
         display.setTextSize(1);      // Normal 1:1 pixel scale
         display.setTextColor(SSD1306_WHITE); // Draw white text
         display.setCursor(0, 0);     // Start at top-left corner
@@ -115,26 +115,29 @@ void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1
     mtrs[m3].begin(6, 10, 14, m3r); // hardware M3
     mtrs[m4].begin(7, 11, 15, m4r); // hardware M4
     // grayscales
-    gryscls[gs1][0] = A0;
-    gryscls[gs1][1] = A1;
-    gryscls[gs1][2] = A2;
-    gryscls[gs2][0] = A3;
-    gryscls[gs2][1] = A4;
-    gryscls[gs2][2] = A5;
-    gryscls[gs3][0] = A6;
-    gryscls[gs3][1] = A7;
-    gryscls[gs3][2] = A8;
-    gryscls[gs4][0] = A9;
-    gryscls[gs4][1] = A10;
-    gryscls[gs4][2] = A11;
-    for (uint8_t side = 0; side < 4; side++) {
-        for (uint8_t idx = 0; idx < 3; idx++) {
-            pinMode(gryscls[side][idx], INPUT);
-        }
+    gryscls[0] = A0;
+    gryscls[1] = A1;
+    gryscls[2] = A2;
+    gryscls[3] = A3;
+    gryscls[4] = A4;
+    gryscls[5] = A5;
+    gryscls[6] = A6;
+    gryscls[7] = A7;
+    gryscls[8] = A8;
+    gryscls[9] = A9;
+    gryscls[10] = A10;
+    gryscls[11] = A11;
+    for (uint8_t idx = 0; idx < 12; idx++) {
+        pinMode(gryscls[idx], INPUT);
     }
     // compound eyes
-    eyes[0].begin(0x01);
-    eyes[1].begin(0x02);
+    if (EEPROM.read(0x00) & (1 << 3)) {
+        eyes[0].begin(0x02);
+        eyes[1].begin(0x01);
+    } else {
+        eyes[0].begin(0x01);
+        eyes[1].begin(0x02);
+    }
     // ultrasounds
     uts[0].begin(31, 27);
     uts[1].begin(32, 28);
@@ -156,7 +159,7 @@ void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1
         pinMode(buttons[idx], INPUT_PULLUP);
     }
     // tobe done: EEPROM retrieve data for compass cal and re-zero and gryscls_thresholds
-    // EEPROM[0x00]: [7 : 4   motors reversed direction] [3 : 0   robot no.]
+    // EEPROM[0x00]: [7 : 4   motors reversed direction] [3   compoI reversed direction] [2 : 0   robot no.]
     // EEPROM[0x01]: [7 : 6 M4_idx] [5 : 4 M3_idx] [3 : 2 M2_idx] [1 : 0 M1_idx]
     // EEPROM[0x02 - 0x03]: reserved
     // compass:
@@ -178,32 +181,7 @@ void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1
     // EEPROM[0x0f]: range_y LOW
     // EEPROM[0x10]: range_z HIGH
     // EEPROM[0x11]: range_z LOW
-    // grayscale thresholds:
-    // EEPROM[0x12]: grayscale[0][0] HIGH
-    // EEPROM[0x13]: grayscale[0][0] LOW
-    // EEPROM[0x14]: grayscale[0][1] HIGH
-    // EEPROM[0x15]: grayscale[0][1] LOW
-    // EEPROM[0x16]: grayscale[0][2] HIGH
-    // EEPROM[0x17]: grayscale[0][2] LOW
-    // EEPROM[0x18]: grayscale[1][0] HIGH
-    // EEPROM[0x19]: grayscale[1][0] LOW
-    // EEPROM[0x1a]: grayscale[1][1] HIGH
-    // EEPROM[0x1b]: grayscale[1][1] LOW
-    // EEPROM[0x1c]: grayscale[1][2] HIGH
-    // EEPROM[0x1d]: grayscale[1][2] LOW
-    // EEPROM[0x1e]: grayscale[2][0] HIGH
-    // EEPROM[0x1f]: grayscale[2][0] LOW
-    // EEPROM[0x20]: grayscale[2][1] HIGH
-    // EEPROM[0x21]: grayscale[2][1] LOW
-    // EEPROM[0x22]: grayscale[2][2] HIGH
-    // EEPROM[0x23]: grayscale[2][2] LOW
-    // EEPROM[0x24]: grayscale[3][0] HIGH
-    // EEPROM[0x25]: grayscale[3][0] LOW
-    // EEPROM[0x26]: grayscale[3][1] HIGH
-    // EEPROM[0x27]: grayscale[3][1] LOW
-    // EEPROM[0x28]: grayscale[3][2] HIGH
-    // EEPROM[0x29]: grayscale[3][2] LOW
-    // EEPROM[0x2a - 0x2f]: reserved
+    // EEPROM[0x12 - 0x2f]: reserved
     // gyro:
     // EEPROM[0x30]: gyro cal_x HIGH
     // EEPROM[0x31]: gyro cal_x LOW
@@ -211,6 +189,47 @@ void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1
     // EEPROM[0x33]: gyro cal_y LOW
     // EEPROM[0x34]: gyro cal_z HIGH
     // EEPROM[0x35]: gyro cal_z LOW
+    // grayscale thresholds:
+    // EEPROM[0x40]: grayscale [0] HIGH
+    // EEPROM[0x41]: grayscale [0] LOW
+    // EEPROM[0x42]: grayscale [1] HIGH
+    // EEPROM[0x43]: grayscale [1] LOW
+    // EEPROM[0x44]: grayscale [2] HIGH
+    // EEPROM[0x45]: grayscale [2] LOW
+    // EEPROM[0x46]: grayscale [3] HIGH
+    // EEPROM[0x47]: grayscale [3] LOW
+    // EEPROM[0x48]: grayscale [4] HIGH
+    // EEPROM[0x49]: grayscale [4] LOW
+    // EEPROM[0x4a]: grayscale [5] HIGH
+    // EEPROM[0x4b]: grayscale [5] LOW
+    // EEPROM[0x4c]: grayscale [6] HIGH
+    // EEPROM[0x4d]: grayscale [6] LOW
+    // EEPROM[0x4e]: grayscale [7] HIGH
+    // EEPROM[0x4f]: grayscale [7] LOW
+    // EEPROM[0x50]: grayscale [8] HIGH
+    // EEPROM[0x51]: grayscale [8] LOW
+    // EEPROM[0x52]: grayscale [9] HIGH
+    // EEPROM[0x53]: grayscale [9] LOW
+    // EEPROM[0x54]: grayscale [10] HIGH
+    // EEPROM[0x55]: grayscale [10] LOW
+    // EEPROM[0x56]: grayscale [11] HIGH
+    // EEPROM[0x57]: grayscale [11] LOW
+    // EEPROM[0x58]: grayscale inverse logic [11 : 8]
+    // EEPROM[0x59]: grayscale inverse logic [7 : 0]
+    // EEPROM[0x5a - 0x5f]: reserved
+    //grayscale mapping:
+    // EEPROM[0x60]: grayscale [0][0]
+    // EEPROM[0x61]: grayscale [0][1]
+    // EEPROM[0x62]: grayscale [0][2]
+    // EEPROM[0x63]: grayscale [1][0]
+    // EEPROM[0x64]: grayscale [1][1]
+    // EEPROM[0x65]: grayscale [1][2]
+    // EEPROM[0x66]: grayscale [2][0]
+    // EEPROM[0x67]: grayscale [2][1]
+    // EEPROM[0x68]: grayscale [2][2]
+    // EEPROM[0x69]: grayscale [3][0]
+    // EEPROM[0x6a]: grayscale [3][1]
+    // EEPROM[0x6b]: grayscale [3][2]
     uint8_t eeprom_ptr = 0x04;
     cmpas.re_zero_heading = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
     cmpas.base_x = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
@@ -219,9 +238,18 @@ void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1
     cmpas.range_x = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
     cmpas.range_y = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
     cmpas.range_z = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
+    eeprom_ptr = 0x40;
+    for (uint8_t idx = 0; idx < 12; idx++) {
+        gryscls_thresholds[idx] = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
+    }
+    const uint8_t gs_inverse = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
+    for (uint8_t idx = 0; idx < 12; idx++) {
+        gryscls_inverse_logic[idx] = ((gs_inverse & (1 << idx)) ? true : false);
+    }
+    eeprom_ptr = 0x60;
     for (uint8_t side = 0; side < 4; side++) {
         for (uint8_t idx = 0; idx < 3; idx++) {
-            gryscls_thresholds[side][idx] = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
+            gryscl_map[side][idx] = EEPROM.read(eeprom_ptr++);
         }
     }
 
@@ -407,11 +435,22 @@ bool Kojay::move_to (const uint8_t side1, const int16_t dist1, const uint8_t sid
 }
 
 int16_t Kojay::get_gryscl (const uint8_t side, const uint8_t idx) {
-    return analogRead(gryscls[side][idx]);
+    if (gryscl_map[side][idx] >= 12) {
+        return 8193;
+    }
+    return analogRead(gryscls[gryscl_map[side][idx]]);
 }
 
 bool Kojay::gryscl_touch_white (const uint8_t side, const uint8_t idx) {
-    return get_gryscl(side, idx) > gryscls_thresholds[side][idx];
+    const uint8_t gryscl_idx = gryscl_map[side][idx];
+    if (gryscl_idx >= 12) {
+        return false;
+    }
+    if (gryscls_inverse_logic[gryscl_idx]) {
+        return analogRead(gryscls[gryscl_idx]) < gryscls_thresholds[gryscl_idx];
+    } else {
+        return analogRead(gryscls[gryscl_idx]) > gryscls_thresholds[gryscl_idx];
+    }
 }
 
 bool Kojay::side_touch_white (const uint8_t side) {
@@ -469,46 +508,50 @@ void Kojay::cal_gryscl () {
         display.writePixel(x_coor[i] + 3, y_coor[i] + 1, SSD1306_WHITE);
         display.writePixel(x_coor[i] + 4, y_coor[i] + 0, SSD1306_WHITE);
     }
+    display.display();
     }
     #endif // #if DISPLAY_DEBUG_INFO
     // tobe done: cal-gryscl and save to EEPROM
-    uint16_t maxs [4][3];
-    uint16_t mins [4][3];
-    for (uint8_t side = 0; side < 4; side++) {
-        for (uint8_t idx = 0; idx < 3; idx++) {
-            maxs[side][idx] = mins[side][idx] = get_gryscl(side, idx);
-        }
+    uint16_t maxs [12];
+    uint16_t mins [12];
+    uint16_t initials [12];
+    for (uint8_t idx = 0; idx < 12; idx++) {
+        maxs[idx] = mins[idx] = initials[idx] = analogRead(gryscls[idx]);
     }
     unsigned long prev_millis = millis();
     while ((millis() - prev_millis) < 5000) {
-        for (uint8_t side = 0; side < 4; side++) {
-            for (uint8_t idx = 0; idx < 3; idx++) {
-                bool updated = false;
-                const uint16_t curr_val = get_gryscl(side, idx);
-                if (curr_val > maxs[side][idx]) {
-                    maxs[side][idx] = curr_val;
-                    updated = true;
-                }
-                if (curr_val < mins[side][idx]) {
-                    mins[side][idx] = curr_val;
-                    updated = true;
-                }
-                if (updated) {
-                    prev_millis = millis();
-                }
+        for (uint8_t idx = 0; idx < 12; idx++) {
+            bool updated = false;
+            const uint16_t curr_val = analogRead(gryscls[idx]);
+            if (curr_val > maxs[idx]) {
+                maxs[idx] = curr_val;
+                updated = true;
+            }
+            if (curr_val < mins[idx]) {
+                mins[idx] = curr_val;
+                updated = true;
+            }
+            if (updated) {
+                prev_millis = millis();
             }
         }
     }
-    uint8_t eeprom_ptr = 0x12;
-    for (uint8_t side = 0; side < 4; side++) {
-        for (uint8_t idx = 0; idx < 3; idx++) {
-            const int16_t threshold = (maxs[side][idx] + mins[side][idx]) / 2;
-            gryscls_thresholds[side][idx] = threshold;
-            // gryscls_thresholds[side][idx] = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
-            EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(threshold >> 8));
-            EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(threshold & 0xff));
+    uint16_t gryscls_inverse_word = 0x00;
+    uint8_t eeprom_ptr = 0x40;
+    for (uint8_t idx = 0; idx < 12; idx++) {
+        // threshold
+        const int16_t threshold = (maxs[idx] + mins[idx]) / 2;
+        gryscls_thresholds[idx] = threshold;
+        EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(threshold >> 8));
+        EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(threshold & 0xff));
+        // inverse logic
+        gryscls_inverse_logic[idx] = (initials[idx] > threshold); // if the reading in green is greater than the reading in white, the logic is inversed
+        if (gryscls_inverse_logic[idx]) {
+            gryscls_inverse_word |= (1 << idx);
         }
     }
+    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(gryscls_inverse_word >> 8));
+    EEPROM.update(eeprom_ptr++, static_cast<uint8_t>(gryscls_inverse_word & 0xff));
     #if DISPLAY_DEBUG_INFO
     if (display_debug_info) {
     display.fillRect(67, 11, 5, 5, SSD1306_BLACK);
@@ -869,8 +912,8 @@ bool Kojay::menu () {
     const bool old_display_debug_info = display_debug_info;
     display_debug_info = true;
     static uint8_t mode = 0;
-    // 8, 4 page of raw-motors, 4 page of realloc-motors, 4 page of reassigned-motors, 4 page of gryscl, 1 page of all data, 1 page of cal gryscl, 1 page of cal compass
-    static const uint8_t max_page_of_mode [] = {8, 4, 4, 4, 4, 1, 3, 3, 2};
+    // 9, 4 page of raw-motors, 4 page of realloc-motors, 4 page of reassigned-motors, 4 page of gryscl, 4 page of realloc-gryscl, 1 page of all data, 3 page of cal gryscl, 3 page of cal compass
+    static const uint8_t max_page_of_mode [] = {9, 4, 4, 4, 4, 4, 1, 3, 3, 2};
     static uint8_t page = 0;
 
     static Motor raw_mtrs [4];
@@ -906,20 +949,27 @@ bool Kojay::menu () {
                     display.print(STRINGS("FLRB x [0],[1],[2]"));
                     break;
                 case 4:
-                    display.print(STRINGS("5. disp all data"));
+                    display.print(STRINGS("5. realloc-gryscls"));
+                    display.setCursor(0, 9);
+                    display.print(STRINGS("F, L, R, B"));
+                    display.setCursor(0, 18);
+                    display.print(STRINGS("[0], [1], [2]"));
+                    break;
+                case 5:
+                    display.print(STRINGS("6. disp all data"));
                     display.setCursor(0, 9);
                     display.print(STRINGS("IR, UTS, CMPAS"));
                     display.setCursor(0, 18);
                     display.print(STRINGS("GRYSCLS"));
                     break;
-                case 5:
-                    display.print(STRINGS("6. cal gryscl"));
-                    break;
                 case 6:
-                    display.print(STRINGS("7. cal compass"));
+                    display.print(STRINGS("7. cal gryscl"));
                     break;
                 case 7:
-                    display.print(STRINGS("8. start program"));
+                    display.print(STRINGS("8. cal compass"));
+                    break;
+                case 8:
+                    display.print(STRINGS("9. start program"));
                     break;
                 default:
                     page = 0;
@@ -1267,7 +1317,7 @@ bool Kojay::menu () {
                 }
                 display.print(val < 9999 ? val : 9999);
                 display.print("  ");
-                const uint16_t thrs = gryscls_thresholds[page][idx];
+                const uint16_t thrs = gryscls_thresholds[gryscl_map[page][idx]];
                 if (thrs < 1000) {
                     display.print('0');
                 }
@@ -1332,6 +1382,113 @@ bool Kojay::menu () {
             break;
         }
         case 5:
+        {
+            #define TOUCHING_WHITE_LINE(idx) (gryscls_inverse_logic[idx] ? (analogRead(gryscls[idx]) < gryscls_thresholds[idx]) : (analogRead(gryscls[idx]) > gryscls_thresholds[idx]))
+            display.clearDisplay();
+            display.setCursor(0, 0);
+            display.print(STRINGS("gryscl side "));
+            const char arr [] = {'F', 'L', 'R', 'B'};
+            display.print(arr[page]);
+            display.print(':');
+            display.setCursor(0, 9);
+            display.print(STRINGS("[xx] [xx] [xx]")); // 1, 6, 11
+            display.display();
+            uint8_t indice [3] = {101, 101, 101};
+            {
+                uint8_t idx = 0;
+                unsigned long prev_millis = millis();
+                while ((idx < 3) && (indice[idx] == 101) && ((millis() - prev_millis) < 10000)) {
+                    for (uint8_t i = 0; i < (sizeof(gryscls)/sizeof(gryscls[0])); i++) {
+                        if ((i == indice[0]) || (i == indice[1]) || (i == indice[2])) {
+                            break;
+                        }
+                        if (TOUCHING_WHITE_LINE(i)) {
+                            delay(250);
+                            if (TOUCHING_WHITE_LINE(i)) {
+                                indice[idx] = i;
+                                display.setCursor((idx * 5) + 1, 9);
+                                if (i < 10) {
+                                    display.print('0');
+                                }
+                                display.print(i, 10);
+                                display.display();
+                                prev_millis = millis();
+                                idx++;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            display.setCursor(0, 18);
+            display.print(STRINGS("3 gs are located"));
+            display.display();
+            display.setCursor(0, 27);
+            display.print(STRINGS("saving to EEPROM"));
+            display.display();
+            {
+                // eeprom_ptr = 0x60;
+                // for (uint8_t side = 0; side < 4; side++) {
+                //     for (uint8_t idx = 0; idx < 3; idx++) {
+                //         gryscl_map[side][idx] = EEPROM.read(eeprom_ptr++);
+                //     }
+                // }
+                uint8_t eeprom_ptr = 0x60 + page * 4;
+                for (uint8_t i = 0; i < 3; i++) {
+                    const uint8_t temp = indice[i];
+                    gryscl_map[page][i] = temp;
+                    EEPROM.write(eeprom_ptr++, temp);
+                }
+            }
+            display.setCursor(0, 27);
+            display.print(STRINGS("saved to EEPROM "));
+            display.display();
+            {
+                bool both_pressed = false;
+                if (button_pressed(0)) {
+                    while (button_pressed(0)) {
+                        if (button_pressed(1)) {
+                            both_pressed = true;
+                            while (button_pressed(1)) {}
+                            break;
+                        }
+                    }
+                    if (!both_pressed) {
+                        if (page > 0) {
+                            page--;
+                        } else {
+                            page = max_page_of_mode[mode] - 1;
+                        }
+                    }
+                    display.clearDisplay();
+                }
+                if ((!both_pressed) && button_pressed(1)) {
+                    while (button_pressed(1)) {
+                        if (button_pressed(0)) {
+                            both_pressed = true;
+                            while (button_pressed(0)) {}
+                            break;
+                        }
+                    }
+                    if (!both_pressed) {
+                        page++;
+                        if (page >= max_page_of_mode[mode]) {
+                            page = 0;
+                        }
+                    }
+                    display.clearDisplay();
+                }
+                if (both_pressed) {
+                    page = mode - 1;
+                    mode = 0;
+                    for (uint8_t i = 0; i < 4; i++) {
+                        mtrs[i] = 0;
+                    }
+                }
+            }
+            break;
+        }
+        case 6:
             update_all_data();
             {
                 bool both_pressed = false;
@@ -1344,7 +1501,11 @@ bool Kojay::menu () {
                         }
                     }
                     if (!both_pressed) {
-                        reset_heading();
+                        uint8_t eeprom_0x00 = EEPROM.read(0x00);
+                        eeprom_0x00 ^= (1 << 3);
+                        EEPROM.update(0x00, eeprom_0x00);
+                        eyes[0].begin((eeprom_0x00 & (1 << 3)) ? 0x02 : 0x01);
+                        eyes[1].begin((eeprom_0x00 & (1 << 3)) ? 0x01 : 0x02);
                         if (page > 0) {
                             page--;
                         } else {
@@ -1379,7 +1540,7 @@ bool Kojay::menu () {
                 }
             }
             break;
-        case 6:
+        case 7:
             display.clearDisplay();
             display.setCursor(0, 0);
             display.print(STRINGS("gryscl"));
@@ -1450,7 +1611,7 @@ bool Kojay::menu () {
                 }
             }
             break;
-        case 7:
+        case 8:
             display.clearDisplay();
             display.setCursor(0, 0);
             display.print(STRINGS("cmpas"));
@@ -1523,26 +1684,7 @@ bool Kojay::menu () {
                 }
             }
             break;
-        case 8:
-            display.clearDisplay();
-            display.setCursor(0, 0);
-            switch (page) {
-                case 0:
-                    display.print(STRINGS("press any button"));
-                    display.setCursor(0, 9);
-                    display.print(STRINGS("to proceed"));
-                    break;
-                case 1:
-                    display.setTextSize(7);
-                    display.print(STRINGS("GO!"));
-                    display.setCursor(0, 0);
-                    display.setTextSize(1);
-                    break;
-                default:
-                    page = 0;
-                    break;
-            }
-            display.display();
+        case 9:
             {
                 bool both_pressed = false;
                 if (button_pressed(0)) {
@@ -1586,6 +1728,25 @@ bool Kojay::menu () {
                     }
                 }
             }
+            display.clearDisplay();
+            display.setCursor(0, 0);
+            switch (page) {
+                case 0:
+                    display.print(STRINGS("press any button"));
+                    display.setCursor(0, 9);
+                    display.print(STRINGS("to proceed"));
+                    break;
+                case 1:
+                    display.setTextSize(7);
+                    display.print(STRINGS("GO!"));
+                    display.setCursor(0, 0);
+                    display.setTextSize(1);
+                    break;
+                default:
+                    page = 0;
+                    break;
+            }
+            display.display();
             break;
         default:
             mode = 0;

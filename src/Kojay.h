@@ -36,7 +36,7 @@ class Kojay {
         //
         uint8_t mtrs_idxs;
         //
-        uint8_t gryscls [4][3];
+        uint8_t gryscls [12];
         //
         CompoI eyes [2];
         //
@@ -48,7 +48,11 @@ class Kojay {
         //
         uint8_t buttons [3];
         //
-        uint16_t gryscls_thresholds [4][3];
+        uint16_t gryscls_thresholds [12];
+        //
+        uint8_t gryscl_map [4][3];
+        //
+        bool gryscls_inverse_logic [12];
         //
         bool use_gyro_instead_cmpas;
         //
@@ -60,7 +64,7 @@ class Kojay {
         //
         void begin ();
         //
-        void begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1r, const bool m2r, const bool m3r, const bool m4r, const uint8_t gs1, const uint8_t gs2, const uint8_t gs3, const uint8_t gs4);
+        void begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1r, const bool m2r, const bool m3r, const bool m4r);
         //
         void set_motor (const uint8_t idx, const int16_t spd);
         //
