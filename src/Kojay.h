@@ -74,6 +74,12 @@ class Kojay {
         //
         bool move_to (const uint8_t side1, const int16_t dist1, const uint8_t side2, const int16_t dist2, const int16_t threshold = 1, const int16_t spd = 80, const double rotation_kp = 0.98, const int16_t target_heading = 0);
         //
+        int16_t get_raw_gryscl (const uint8_t idx);
+        //
+        bool raw_gryscl_touch_white (const uint8_t idx);
+        //
+        bool raw_side_touch_white (const uint8_t side);
+        //
         int16_t get_gryscl (const uint8_t side, const uint8_t idx);
         //
         bool gryscl_touch_white (const uint8_t side, const uint8_t idx);

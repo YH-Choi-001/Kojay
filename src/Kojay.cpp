@@ -242,7 +242,7 @@ void Kojay::begin (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4, const bool m1
     for (uint8_t idx = 0; idx < 12; idx++) {
         gryscls_thresholds[idx] = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
     }
-    const uint8_t gs_inverse = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
+    const uint16_t gs_inverse = (EEPROM.read(eeprom_ptr++) << 8) | EEPROM.read(eeprom_ptr++);
     for (uint8_t idx = 0; idx < 12; idx++) {
         gryscls_inverse_logic[idx] = ((gs_inverse & (1 << idx)) ? true : false);
     }
@@ -434,23 +434,43 @@ bool Kojay::move_to (const uint8_t side1, const int16_t dist1, const uint8_t sid
     return false;
 }
 
-int16_t Kojay::get_gryscl (const uint8_t side, const uint8_t idx) {
-    if (gryscl_map[side][idx] >= 12) {
+int16_t Kojay::get_raw_gryscl (const uint8_t idx) {
+    if (idx >= 12) {
         return 8193;
     }
-    return analogRead(gryscls[gryscl_map[side][idx]]);
+    return analogRead(gryscls[idx]);
+}
+
+bool Kojay::raw_gryscl_touch_white (const uint8_t idx) {
+    if (idx >= 12) {
+        return false;
+    }
+    const uint16_t val = get_raw_gryscl(idx);
+    if (gryscls_inverse_logic[idx]) {
+        return val < gryscls_thresholds[idx];
+    } else {
+        return val > gryscls_thresholds[idx];
+    }
+}
+
+bool Kojay::raw_side_touch_white (const uint8_t side) {
+    bool touch_white = false;
+    uint8_t basic_val = side * 3;
+    for (uint8_t i = 0; i < 3; i++, basic_val++) {
+        if (raw_gryscl_touch_white(basic_val)) {
+            touch_white = true;
+            break;
+        }
+    }
+    return touch_white;
+}
+
+int16_t Kojay::get_gryscl (const uint8_t side, const uint8_t idx) {
+    return get_raw_gryscl(gryscl_map[side][idx]);
 }
 
 bool Kojay::gryscl_touch_white (const uint8_t side, const uint8_t idx) {
-    const uint8_t gryscl_idx = gryscl_map[side][idx];
-    if (gryscl_idx >= 12) {
-        return false;
-    }
-    if (gryscls_inverse_logic[gryscl_idx]) {
-        return analogRead(gryscls[gryscl_idx]) < gryscls_thresholds[gryscl_idx];
-    } else {
-        return analogRead(gryscls[gryscl_idx]) > gryscls_thresholds[gryscl_idx];
-    }
+    return raw_gryscl_touch_white(gryscl_map[side][idx]);
 }
 
 bool Kojay::side_touch_white (const uint8_t side) {
@@ -1321,7 +1341,7 @@ bool Kojay::menu () {
                     display.print('[');
                     display.print(idx);
                     display.print(STRINGS("]  "));
-                    const int16_t val = analogRead(gryscls[(page-1) * 3 + idx]);
+                    const int16_t val = get_raw_gryscl((page-1) * 3 + idx);
                     if (val < 1000) {
                         display.print('0');
                     }
@@ -1345,7 +1365,7 @@ bool Kojay::menu () {
                     }
                     display.print(thrs < 9999 ? thrs : 9999);
                     display.drawRect(121, y_coor, 7, 7, SSD1306_WHITE);
-                    if ( ((val < thrs) && (gryscls_inverse_logic[(page-1) * 3 + idx])) || ((val > thrs) && (!gryscls_inverse_logic[(page-1) * 3 + idx])) ) {
+                    if (raw_gryscl_touch_white((page-1) * 3 + idx)) {
                         display.fillRect(121, y_coor, 7, 7, SSD1306_WHITE);
                     }
                     y_coor += 9;
@@ -1408,7 +1428,7 @@ bool Kojay::menu () {
                 display.display();
             } else if (page == 1) {
                 for (; page <= 4; page++) {
-                    #define TOUCHING_WHITE_LINE(idx) (gryscls_inverse_logic[idx] ? (analogRead(gryscls[idx]) < gryscls_thresholds[idx]) : (analogRead(gryscls[idx]) > gryscls_thresholds[idx]))
+                    // #define TOUCHING_WHITE_LINE(idx) (gryscls_inverse_logic[idx] ? (analogRead(gryscls[idx]) < gryscls_thresholds[idx]) : (analogRead(gryscls[idx]) > gryscls_thresholds[idx]))
                     display.clearDisplay();
                     display.setCursor(0, 0);
                     display.print(STRINGS("gryscl side "));
@@ -1427,9 +1447,9 @@ bool Kojay::menu () {
                                 if ((i == indice[0]) || (i == indice[1]) || (i == indice[2])) {
                                     break;
                                 }
-                                if (TOUCHING_WHITE_LINE(i)) {
+                                if (raw_gryscl_touch_white(i)) {
                                     delay(250);
-                                    if (TOUCHING_WHITE_LINE(i)) {
+                                    if (raw_gryscl_touch_white(i)) {
                                         indice[idx] = i;
                                         display.setCursor((idx * 5) + 1, 9);
                                         if (i < 10) {

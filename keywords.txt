@@ -5,7 +5,10 @@ Uts					KEYWORD1
 Cmpas				KEYWORD1
 Gyro				KEYWORD1
 
+prev_uts_time		KEYWORD2
+uts_dists			KEYWORD2
 mtrs				KEYWORD2
+mtrs_idxs			KEYWORD2
 gryscls				KEYWORD2
 eyes				KEYWORD2
 uts					KEYWORD2
@@ -13,6 +16,9 @@ cmpas				KEYWORD2
 gyro				KEYWORD2
 buttons				KEYWORD2
 gryscls_thresholds		KEYWORD2
+gryscl_map			KEYWORD2
+gryscls_inverse_logic		KEYWORD2
+use_gyro_instead_cmpas		KEYWORD2
 display				KEYWORD2
 display_debug_info		KEYWORD2
 begin				KEYWORD2
@@ -20,6 +26,9 @@ set_motor			KEYWORD2
 polar_ctrl			KEYWORD2
 rect_ctrl			KEYWORD2
 move_to				KEYWORD2
+get_raw_gryscl		KEYWORD2
+raw_gryscl_touch_white		KEYWORD2
+raw_side_touch_white		KEYWORD2
 get_gryscl			KEYWORD2
 gryscl_touch_white		KEYWORD2
 side_touch_white		KEYWORD2
